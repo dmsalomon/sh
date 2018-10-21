@@ -1,7 +1,8 @@
 
 CFLAGS:=-g -Wall
 PROG:=sh
-ZIP:=hw4_dms833.zip
+DIR:=$(notdir $(basename $(CURDIR)))
+TAR:=$(DIR).tar.gz
 
 OBJ=sh.o\
     cmd.o\
@@ -13,11 +14,13 @@ all: $(PROG)
 $(PROG): $(OBJ)
 
 clean:
-	$(RM) *.o $(PROG) $(ZIP)
+	$(RM) *.o $(PROG) $(TAR)
 
-$(ZIP): clean
+$(TAR): clean
 	cd .. && \
-	zip -r $@ hw4/*.[ch] hw4/Makefile && \
-	mv $@ hw4/.
+	tar czf $@ $(DIR) && \
+	mv $@ $(DIR)/.
 
-.PHONY: all clean upload
+dist: $(TAR)
+
+.PHONY: all clean dist
