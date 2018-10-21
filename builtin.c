@@ -54,24 +54,24 @@ static int cd_builtin(struct cmd *cmd)
 	char *home;
 
 	if (cmd->argc > 2) {
-		reportf("cd: too many args");
+		perrorf("cd: too many args");
 		return 1;
 	}
 
 	if (cmd->argc == 2) {
 		if (chdir(cmd->argv[1])) {
-			perrorf("cd: %s", cmd->argv[1]);
+			perrorf("cd: %s:", cmd->argv[1]);
 			return 1;
 		}
 	}
 	else if ((home = getenv("HOME"))) {
 		if (chdir(home)) {
-			perrorf("cd: %s", home);
+			perrorf("cd: %s:", home);
 			return 1;
 		}
 	}
 	else {
-		reportf("cd: no directory");
+		perrorf("cd: no directory");
 		return 1;
 	}
 
@@ -99,7 +99,7 @@ static int exec_builtin(struct cmd *cmd)
 		scan_redir(cmd);
 		execvp(cmd->argv[1], cmd->argv+1);
 		/* if error */
-		reportf("exec: %s: command not found", cmd->argv[1]);
+		perrorf("exec: %s: command not found", cmd->argv[1]);
 		return 127;
 	}
 	return 0;

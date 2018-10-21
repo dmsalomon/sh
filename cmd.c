@@ -155,7 +155,7 @@ int runprog(struct cmd *cmd)
 	if (WIFSIGNALED(status))
 		return 128 + WTERMSIG(status);
 
-	reportf("Unexpected status (0x%x)\n", status);
+	perrorf("Unexpected status (0x%x)\n", status);
 	return status & 0xff;
 }
 

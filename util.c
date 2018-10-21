@@ -19,25 +19,18 @@
 void perrorf(const char *fmt, ...)
 {
 	va_list ap;
-	va_start(ap, fmt);
-	fprintf(stderr, "sh: ");
-	vfprintf(stderr, fmt, ap);
-	fprintf(stderr, ": %s\n", strerror(errno));
-	va_end(ap);
-}
 
-
-/*
- * report and error with formatting
- */
-void reportf(const char *fmt, ...)
-{
-	va_list ap;
 	va_start(ap, fmt);
 	fprintf(stderr, "%s: ", PROGNAME);
 	vfprintf(stderr, fmt, ap);
-	fputc('\n', stderr);
 	va_end(ap);
+
+	if (fmt[0] && fmt[strlen(fmt)-1] != ':') {
+		fputc('\n', stderr);
+	} else {
+		fputc(' ', stderr);
+		perror(NULL);
+	}
 }
 
 /*
@@ -79,5 +72,5 @@ pid_t dfork()
 inline void alloc_die(void *p)
 {
 	if (!p)
-		die("alloc_die:");
+		die("alloc_die():");
 }
