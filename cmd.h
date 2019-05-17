@@ -19,5 +19,6 @@ void freecmd(struct cmd *cmd);
 int runcmd(struct cmd *);
 void scan_redir(struct cmd*);
 void redirect(char, char*, int);
+int waitsh(int);
 
 #endif

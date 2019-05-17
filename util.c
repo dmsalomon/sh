@@ -13,6 +13,16 @@
 
 #include "util.h"
 
+void reportf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	fprintf(stderr, "%s: ", PROGNAME);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+}
+
 /*
  * Like perror but with formatting
  */

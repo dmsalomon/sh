@@ -136,7 +136,6 @@ int runcmd(struct cmd *cmd)
 int runprog(struct cmd *cmd)
 {
 	pid_t pid = dfork();
-	int status;
 
 	/* child */
 	if (pid == 0) {
@@ -147,16 +146,7 @@ int runprog(struct cmd *cmd)
 	}
 
 	/* parent */
-	if (waitpid(pid, &status, 0) < 0)
-		die("%d:", pid);
-
-	if (WIFEXITED(status))
-		return WEXITSTATUS(status);
-	if (WIFSIGNALED(status))
-		return 128 + WTERMSIG(status);
-
-	perrorf("Unexpected status (0x%x)\n", status);
-	return status & 0xff;
+	return waitsh(pid);
 }
 
 void freecmd(struct cmd *cmd)
@@ -296,3 +286,22 @@ void redirect(char op, char *file, int fd)
 	}
 }
 
+int waitsh(int pid) {
+	int status;
+
+	if (waitpid(pid, &status, WUNTRACED) < 0)
+		die("%d:", pid);
+
+	if (WIFEXITED(status))
+		return WEXITSTATUS(status);
+	if (WIFSIGNALED(status))
+		return 128 + WTERMSIG(status);
+
+	if (WIFSTOPPED(status)) {
+		reportf("%d suspended\n", pid);
+		return 128 + WTERMSIG(status);
+	}
+
+	perrorf("Unexpected status (0x%x)\n", status);
+	return status & 0xff;
+}

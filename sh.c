@@ -42,5 +42,7 @@ static void signal_init()
 		die("sigaction: SIGINT:");
 	if (sigaction(SIGQUIT, &sa, NULL))
 		die("sigaction: SIGQUIT:");
+	if (sigaction(SIGTSTP, &sa, NULL))
+		die("sigaction: SIGTSTP:");
 }
 

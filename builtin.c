@@ -1,6 +1,7 @@
 /** \file builtin.c
  */
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 static int cd_builtin(struct cmd*);
 static int exit_builtin(struct cmd*);
 static int exec_builtin(struct cmd*);
+static int fg_builtin(struct cmd*);
 
 /*
  * A struct to hold the builtin
@@ -30,6 +32,7 @@ builtins[] = {
 	{"cd", 	 cd_builtin},
 	{"exit", exit_builtin},
 	{"exec", exec_builtin},
+	{"fg",   fg_builtin},
 };
 
 /*
@@ -105,3 +108,20 @@ static int exec_builtin(struct cmd *cmd)
 	return 0;
 }
 
+
+static int fg_builtin(struct cmd *cmd)
+{
+	if (cmd->argc < 2) {
+		reportf("fg: too few args\n");
+		return 1;
+	}
+
+	int pid = atoi(cmd->argv[1]);
+
+	if(kill(pid, SIGCONT)) {
+		reportf("fg: cannot resume %d\n", pid);
+		return 1;
+	}
+
+	return waitsh(pid);
+}
