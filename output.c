@@ -4,14 +4,12 @@
  * for error handling.
  */
 
-#include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-#include "util.h"
+#include "output.h"
 
 void reportf(const char *fmt, ...)
 {
@@ -63,24 +61,4 @@ void sdie(int status, const char *fmt, ...)
 	}
 
 	exit(status);
-}
-
-/*
- * fork and die on failure
- */
-pid_t dfork()
-{
-	pid_t pid = fork();
-	if (pid == -1)
-		die("fork error:");
-	return pid;
-}
-
-/*
- * die if memory was not alloc'd
- */
-inline void alloc_die(void *p)
-{
-	if (!p)
-		die("alloc_die():");
 }

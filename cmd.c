@@ -128,6 +128,17 @@ int runcmd(struct cmd *cmd)
 }
 
 /*
+ * fork and die on failure
+ */
+pid_t dfork()
+{
+	pid_t pid = fork();
+	if (pid == -1)
+		die("fork:");
+	return pid;
+}
+
+/*
  * forks and execs the program
  *
  * The parent waits until the child program is done.
