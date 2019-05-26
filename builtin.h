@@ -6,7 +6,7 @@
 
 #include "cmd.h"
 
-typedef int (*builtin_func)(struct cmd*);
+typedef int (*builtin_func)(struct cexec*);
 
 builtin_func get_builtin(char *);
 

@@ -9,15 +9,16 @@
 
 #include "builtin.h"
 #include "cmd.h"
-#include "util.h"
+#include "eval.h"
+#include "output.h"
 
 #define LEN(a)		(sizeof(a) / sizeof(a[0]))
 #define N_BUILTINS	LEN(builtins)
 
-static int cd_builtin(struct cmd*);
-static int exit_builtin(struct cmd*);
-static int exec_builtin(struct cmd*);
-static int fg_builtin(struct cmd*);
+static int cd_builtin(struct cexec*);
+static int exit_builtin(struct cexec*);
+static int exec_builtin(struct cexec*);
+static int fg_builtin(struct cexec*);
 
 /*
  * A struct to hold the builtin
@@ -52,7 +53,7 @@ builtin_func get_builtin(char *name)
  * if no args are specified the shell
  * will try to cd to $HOME
  */
-static int cd_builtin(struct cmd *cmd)
+static int cd_builtin(struct cexec *cmd)
 {
 	char *home;
 
@@ -85,21 +86,20 @@ static int cd_builtin(struct cmd *cmd)
  * by default the status will be 0
  * the user can specify a status
  */
-static int exit_builtin(struct cmd *cmd)
+static int exit_builtin(struct cexec *cmd)
 {
 	int status = 0;
 
 	if (cmd->argc > 1)
 		status = atoi(cmd->argv[1]);
 
-	exit(status);
+	_exit(status);
 }
 
 /* exec a program to replace the shell */
-static int exec_builtin(struct cmd *cmd)
+static int exec_builtin(struct cexec *cmd)
 {
 	if (cmd->argc > 1) {
-		scan_redir(cmd);
 		execvp(cmd->argv[1], cmd->argv+1);
 		/* if error */
 		perrorf("exec: %s: command not found", cmd->argv[1]);
@@ -109,7 +109,7 @@ static int exec_builtin(struct cmd *cmd)
 }
 
 
-static int fg_builtin(struct cmd *cmd)
+static int fg_builtin(struct cexec *cmd)
 {
 	if (cmd->argc < 2) {
 		reportf("fg: too few args\n");

@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "output.h"
 
@@ -60,5 +61,6 @@ void sdie(int status, const char *fmt, ...)
 		perror(NULL);
 	}
 
-	exit(status);
+	_exit(status);
 }
+

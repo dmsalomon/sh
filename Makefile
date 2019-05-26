@@ -7,7 +7,15 @@ TAR:=$(DIR).tar.gz
 OBJ=sh.o\
     cmd.o\
     builtin.o\
-    util.o\
+    output.o\
+    lexer.o\
+    input.o\
+    parser.o\
+    mem.o\
+    eval.o\
+    redir.o\
+    error.o\
+    trap.o\
 
 all: $(PROG)
 

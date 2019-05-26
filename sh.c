@@ -8,41 +8,38 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "util.h"
 #include "cmd.h"
-
-int lstatus = 0;
-
-static void signal_init();
+#include "error.h"
+#include "eval.h"
+#include "mem.h"
+#include "parser.h"
+#include "redir.h"
+#include "trap.h"
 
 int main(int argc, char **argv)
 {
-	static struct cmd *cmd;
+	struct cmd *cmd;
+	struct stackmark mark;
+	struct jmploc jmploc;
 
-	signal_init();
+	pushstackmark(&mark);
+
+	if (setjmp(jmploc.loc)) {
+		unwindredir();
+		popstackmark(&mark);
+		fputc('\n', stderr);
+	} else {
+		signal_init();
+	}
+	handler = &jmploc;
+
+	pushstackmark(&mark);
 
 	/* repl */
-	while (getcmd(&cmd)) {
+	while ((cmd = parseline()) != CEOF) {
 		if (!cmd) continue;
-		lstatus = runcmd(cmd);
+		eval(cmd);
+		popstackmark(&mark);
 	}
-}
-
-static void handler(int signum) { }
-
-static void signal_init()
-{
-	struct sigaction sa;
-
-	sa.sa_handler = handler;
-	sa.sa_flags = SA_RESTART;
-	sigfillset(&sa.sa_mask);
-
-	if (sigaction(SIGINT, &sa, NULL))
-		die("sigaction: SIGINT:");
-	if (sigaction(SIGQUIT, &sa, NULL))
-		die("sigaction: SIGQUIT:");
-	if (sigaction(SIGTSTP, &sa, NULL))
-		die("sigaction: SIGTSTP:");
 }
 
