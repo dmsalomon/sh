@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,18 +25,15 @@ int exitstatus;
 
 static pid_t dfork(void);
 static int evalpipe(struct cmd *);
+static int evalloop(struct cmd *);
 
 int eval(struct cmd *c)
 {
 	struct cexec *ce;
 	struct cif   *ci;
-	struct cloop *clp;
 	struct cbinary *cb;
 	struct credir *cr;
 	struct cunary *cu;
-
-	struct jmploc *savehandler;
-	struct jmploc jmploc;
 
 	switch (c->type) {
 	case CEXEC:
@@ -88,10 +86,15 @@ int eval(struct cmd *c)
 
 	case CWHILE:
 	case CUNTIL:
-		clp = (struct cloop*)c;
+		exitstatus = evalloop(c);
+		break;
 
-		while (eval(clp->cond) ^ (clp->type == CWHILE))
-			exitstatus = eval(clp->body);
+	case CBRC:
+	case CSUB:
+		/* for now subshells are fake */
+		cu = (struct cunary*)c;
+		exitstatus = eval(cu->cmd);
+		break;
 
 	default:
 		perrorf("%d: not implemented", c->type);
@@ -162,6 +165,69 @@ static int evalpipe(struct cmd *c)
 	return waitsh(pr);
 }
 
+static struct looploc {
+	struct looploc *next;
+	jmp_buf loc;
+} *loops;
+
+static int poploop(int lvl, int reason)
+{
+	struct looploc *jmppnt;
+
+	if (!loops)
+		return 0;
+
+	while (--lvl && loops->next) {
+		loops = loops->next;
+	}
+	jmppnt = loops;
+	loops = loops->next;
+
+	longjmp(jmppnt->loc, reason);
+}
+
+void unwindloops(void)
+{
+	while (loops)
+		loops = loops->next;
+}
+
+static int evalloop(struct cmd *c)
+{
+	int mod, reason;
+	struct looploc here;
+	struct cloop *cmd;
+
+	cmd = (struct cloop*)c;
+	mod = cmd->type == CWHILE;
+
+	if ((reason = setjmp(here.loc))) {
+		exitstatus = 0;
+		if (reason == SKIPBREAK)
+			goto brk;
+	}
+	here.next = loops;
+	loops = &here;
+
+
+	while (eval(cmd->cond) ^ mod)
+		exitstatus = eval(cmd->body);
+
+brk:
+	return exitstatus;
+}
+
+int break_builtin(struct cexec *cmd)
+{
+	int n = cmd->argc > 1 ? atoi(cmd->argv[1]) : 1;
+	int type;
+
+	if (n <= 0)
+		raiseerr("break: bad number: %s", cmd->argv[1]);
+	type = (cmd->argv[0][0] == 'c') ? SKIPCONT : SKIPBREAK;
+	return poploop(n, type);
+}
+
 /*
  * fork and die on failure
  */
@@ -194,50 +260,6 @@ int runprog(struct cexec *cmd)
 	return waitsh(pid);
 }
 
-/*
- * opens the file for redirection to the specified
- * fd, or to the default fd for that op
- */
-void redirect(char op, char *file, int fd)
-{
-	int mode, ofd;
-
-	switch (op) {
-	case '<':
-		if (!fd) fd = 0;
-		mode = O_RDONLY;
-		break;
-	case '>':
-		if (!fd) fd = 1;
-		mode = O_CREAT | O_TRUNC | O_WRONLY;
-		break;
-	case '+':
-		if (!fd) fd = 1;
-		mode = O_CREAT | O_APPEND | O_WRONLY;
-		break;
-	default:
-		// should never happen
-		die("expecting redirection");
-		break;
-	}
-
-	/* open file for redirection
-	 * use rw-r-r permissions */
-	ofd = open(file, mode, 0644);
-
-	if (ofd < 0)
-		die("%s:", file);
-
-	if (fd != ofd) {
-		if (dup2(ofd, fd) < 0)
-			die("%d:", fd);
-
-		/* cleanup */
-		if (close(ofd) < 0)
-			die("%d:", ofd);
-	}
-}
-
 int waitsh(int pid) {
 	int status;
 
@@ -250,7 +272,7 @@ int waitsh(int pid) {
 		return 128 + WTERMSIG(status);
 
 	if (WIFSTOPPED(status)) {
-		reportf("%d suspended\n", pid);
+		perrorf("%d suspended", pid);
 		return 128 + WTERMSIG(status);
 	}
 

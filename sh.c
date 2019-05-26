@@ -18,16 +18,21 @@
 
 int main(int argc, char **argv)
 {
+	int exception;
 	struct cmd *cmd;
 	struct stackmark mark;
 	struct jmploc jmploc;
 
 	pushstackmark(&mark);
 
-	if (setjmp(jmploc.loc)) {
+	if ((exception = setjmp(jmploc.loc))) {
+		/* reset the shell */
+		unwindloops();
 		unwindredir();
+		unwindloops();
 		popstackmark(&mark);
-		fputc('\n', stderr);
+		if (exception == EXINT)
+			fputc('\n', stderr);
 	} else {
 		signal_init();
 	}

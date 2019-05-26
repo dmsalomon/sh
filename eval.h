@@ -4,9 +4,20 @@
 #ifndef EVAL_H
 #define EVAL_H
 
+extern int exitstatus;
+
+#include "cmd.h"
+
 int eval(struct cmd *);
 int evalcmd(struct cexec *);
 int runprog(struct cexec *);
 int waitsh(int);
+
+void unwindloops(void);
+int break_builtin(struct cexec *);
+
+/* must be <0 */
+#define SKIPBREAK 1
+#define SKIPCONT  2
 
 #endif

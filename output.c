@@ -12,27 +12,13 @@
 
 #include "output.h"
 
-void reportf(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	fprintf(stderr, "%s: ", PROGNAME);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-}
-
 /*
  * Like perror but with formatting
  */
-void perrorf(const char *fmt, ...)
+void vperrorf(const char *fmt, va_list ap)
 {
-	va_list ap;
-
-	va_start(ap, fmt);
 	fprintf(stderr, "%s: ", PROGNAME);
 	vfprintf(stderr, fmt, ap);
-	va_end(ap);
 
 	if (fmt[0] && fmt[strlen(fmt)-1] != ':') {
 		fputc('\n', stderr);
@@ -40,6 +26,14 @@ void perrorf(const char *fmt, ...)
 		fputc(' ', stderr);
 		perror(NULL);
 	}
+}
+
+void perrorf(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vperrorf(fmt, ap);
+	va_end(ap);
 }
 
 /*
@@ -48,19 +42,14 @@ void perrorf(const char *fmt, ...)
 void sdie(int status, const char *fmt, ...)
 {
 	va_list ap;
-
 	va_start(ap, fmt);
-	fprintf(stderr, "%s: ", PROGNAME);
-	vfprintf(stderr, fmt, ap);
+	vperrorf(fmt, ap);
 	va_end(ap);
-
-	if (fmt[0] && fmt[strlen(fmt)-1] != ':') {
-		fputc('\n', stderr);
-	} else {
-		fputc(' ', stderr);
-		perror(NULL);
-	}
-
 	_exit(status);
 }
 
+void flushall(void)
+{
+	fflush(stdout);
+	fflush(stderr);
+}

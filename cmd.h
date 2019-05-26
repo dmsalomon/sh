@@ -8,12 +8,13 @@
 #define CAND 3
 #define COR 4
 #define CSUB 5
-#define CREDIR 6
-#define CWHILE 7
-#define CUNTIL 8
-#define CLIST 9
-#define CBGND 10
-#define CIF 11
+#define CBRC 6
+#define CREDIR 7
+#define CWHILE 8
+#define CUNTIL 9
+#define CLIST 10
+#define CBGND 11
+#define CIF 12
 
 extern const char *cmdname[];
 

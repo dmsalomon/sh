@@ -11,9 +11,12 @@ struct jmploc {
 extern struct jmploc *handler;
 extern int exception;
 
-#define EXINT 0
+/* must be non zero */
+#define EXINT 1
+#define EXERR 2
 
-void exraise(void) __attribute__((noreturn));
+void exraise(int) __attribute__((noreturn));
 void onint(void) __attribute__((noreturn));
+void raiseerr(const char *, ...) __attribute__((noreturn));
 
 #endif

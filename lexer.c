@@ -229,7 +229,6 @@ static int word(void)
 	while ((c = readchar()) != PEOF) {
 		if (!str && strchr(" ()<>&\n\t\r\v;|", c)) {
 			pungetc();
-			if (c == '\n') plineno--;
 			break;
 		}
 

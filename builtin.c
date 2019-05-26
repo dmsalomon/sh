@@ -30,10 +30,12 @@ static struct {
 	builtin_func f;
 }
 builtins[] = {
-	{"cd", 	 cd_builtin},
-	{"exit", exit_builtin},
-	{"exec", exec_builtin},
-	{"fg",   fg_builtin},
+	{"break",    break_builtin},
+	{"cd", 	     cd_builtin},
+	{"continue", break_builtin},
+	{"exit",     exit_builtin},
+	{"exec",     exec_builtin},
+	{"fg",       fg_builtin},
 };
 
 /*
@@ -108,18 +110,17 @@ static int exec_builtin(struct cexec *cmd)
 	return 0;
 }
 
-
 static int fg_builtin(struct cexec *cmd)
 {
 	if (cmd->argc < 2) {
-		reportf("fg: too few args\n");
+		perrorf("fg: too few args");
 		return 1;
 	}
 
 	int pid = atoi(cmd->argv[1]);
 
 	if(kill(pid, SIGCONT)) {
-		reportf("fg: cannot resume %d\n", pid);
+		perrorf("fg: cannot resume %d", pid);
 		return 1;
 	}
 

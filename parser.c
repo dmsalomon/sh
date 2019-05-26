@@ -7,10 +7,10 @@
 #include <unistd.h>
 
 #include "cmd.h"
+#include "error.h"
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
-#include "output.h"
 #include "parser.h"
 
 static struct cmd *parselist(void);
@@ -33,16 +33,9 @@ static int cmplistdone(void);
 static int separator(void);
 static int ionumber(const char *);
 
-jmp_buf beginparse;
-extern int exitstatus;
-
 struct cmd *parseline(void)
 {
 	struct cmd *c;
-
-	if (setjmp(beginparse)) {
-		return NULL;
-	}
 
 	if (yytoken == TEOF)
 		return CEOF;
@@ -131,17 +124,24 @@ static struct cmd *parsepipe(void)
 
 static struct cmd *parsecmd(void)
 {
-	if (checkwd() != TWORD)
+	switch (checkwd()) {
+	case TLBRC:
+	case TLPAR:
+	case TWHLE:
+	case TUNTL:
+	case TIF:
 		return parsecmpcmd();
-
-	return parsesimple();
+	default:
+		return parsesimple();
+	}
 }
 
 static struct cmd *parsecmpcmd(void)
 {
 	struct cmd *cmd, *redir;
 
-	switch (yytoken) {
+	switch (checkwd()) {
+	case TLBRC:
 	case TLPAR:
 		cmd = parsesub();
 		break;
@@ -166,16 +166,19 @@ static struct cmd *parsecmpcmd(void)
 
 static struct cmd *parsesub(void)
 {
+	int open;
 	struct cmd *cmd;
 
-	if (yytoken != TLPAR)
-		unexpected();
-
+	open = yytoken;
 	nexttoken();
 
-	cmd = unrycmd(CSUB, parsecmplist());
+	cmd = unrycmd(open == TLPAR ? CSUB : CBRC, parsecmplist());
 
-	if (yytoken != TRPAR)
+#if TLBRC+1 != TRBRC || TLPAR+1 != TRPAR
+#error Token assumptions
+#endif
+
+	if (yytoken != open+1)
 		unexpected();
 	nexttoken();
 
@@ -402,38 +405,29 @@ static int separator(void)
 
 static int cmplistdone(void)
 {
-	if (yytoken == TRPAR)
+	switch (checkwd()) {
+	case TRPAR:
+	case TRBRC:
+	case TDO:
+	case TDONE:
+	case TTHEN:
+	case TELSE:
+	case TELIF:
+	case TFI:
 		return 1;
-	if (yytoken == TWORD) {
-		if (strcmp(yytext, "do") == 0)
-			yytoken = TDO;
-		else if (strcmp(yytext, "done") == 0)
-			yytoken = TDONE;
-		else if (strcmp(yytext, "then") == 0)
-			yytoken = TTHEN;
-		else if (strcmp(yytext, "else") == 0)
-			yytoken = TELSE;
-		else if (strcmp(yytext, "elif") == 0)
-			yytoken = TELIF;
-		else if (strcmp(yytext, "fi") == 0)
-			yytoken = TFI;
-		if (yytoken != TWORD)
-			return 1;
+	default:
+		return 0;
 	}
-	return 0;
 }
 
 static int ionumber(const char *word)
 {
-	int n = word[0] - '0';
-	return (isdigit(word[0]) && !word[1]) ? n : (-1);
+	return (isdigit(word[0]) && !word[1]) ? (word[0] - '0') : (-1);
 }
 
 static void unexpected()
 {
 	int c;
-
-	perrorf("%d: syntax: `%s` unexpected", plineno, yytext);
 
 	if (yytoken == TEOF)
 		yytoken = TNL;
@@ -442,7 +436,5 @@ static void unexpected()
 		while ((c = pgetc()) != PEOF && c != '\n')
 			;
 
-	exitstatus = 2;
-
-	longjmp(beginparse, 1);
+	raiseerr("%d: syntax: `%s` unexpected", plineno, yytext);
 }
