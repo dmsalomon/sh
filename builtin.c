@@ -33,8 +33,9 @@ builtins[] = {
 	{"break",    break_builtin},
 	{"cd", 	     cd_builtin},
 	{"continue", break_builtin},
-	{"exit",     exit_builtin},
+	{"eval",     eval_builtin},
 	{"exec",     exec_builtin},
+	{"exit",     exit_builtin},
 	{"fg",       fg_builtin},
 };
 

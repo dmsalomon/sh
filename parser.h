@@ -4,6 +4,4 @@
 
 struct cmd *parseline(void);
 
-#define CEOF ((struct cmd *)parseline)
-
 #endif

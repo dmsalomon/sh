@@ -11,6 +11,8 @@
 #include "cmd.h"
 #include "error.h"
 #include "eval.h"
+#include "input.h"
+#include "lexer.h"
 #include "mem.h"
 #include "parser.h"
 #include "redir.h"
@@ -27,9 +29,10 @@ int main(int argc, char **argv)
 
 	if ((exception = setjmp(jmploc.loc))) {
 		/* reset the shell */
-		unwindloops();
 		unwindredir();
 		unwindloops();
+		popallfiles();
+		yytoken = TNL;
 		popstackmark(&mark);
 		if (exception == EXINT)
 			fputc('\n', stderr);
@@ -41,10 +44,9 @@ int main(int argc, char **argv)
 	pushstackmark(&mark);
 
 	/* repl */
-	while ((cmd = parseline()) != CEOF) {
+	for (; (cmd = parseline()) != CEOF; popstackmark(&mark)) {
 		if (!cmd) continue;
 		eval(cmd);
-		popstackmark(&mark);
 	}
 }
 

@@ -18,6 +18,8 @@
 
 extern const char *cmdname[];
 
+#define CEOF ((struct cmd*)cmdname)
+
 struct cmd {
 	int type;
 };

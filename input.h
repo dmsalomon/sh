@@ -22,13 +22,14 @@ extern struct parsefile *parsefile;
 
 #define plineno (parsefile->lineno)
 
-int pgetc();
-void pungetc();
+int pgetc(void);
+void pungetc(void);
 int setinputfile(const char *, int);
-void popfile();
+void setinputstring(char *);
+void popfile(void);
 void unwindfiles(struct parsefile *);
-void popallfiles();
-void closescript();
+void popallfiles(void);
+void closescript(void);
 
 #define PEOF (-1)
 

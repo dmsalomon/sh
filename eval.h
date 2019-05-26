@@ -10,11 +10,13 @@ extern int exitstatus;
 
 int eval(struct cmd *);
 int evalcmd(struct cexec *);
+int evalstring(char *s);
 int runprog(struct cexec *);
 int waitsh(int);
 
 void unwindloops(void);
 int break_builtin(struct cexec *);
+int eval_builtin(struct cexec *);
 
 /* must be <0 */
 #define SKIPBREAK 1

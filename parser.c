@@ -37,11 +37,13 @@ struct cmd *parseline(void)
 {
 	struct cmd *c;
 
-	if (yytoken == TEOF)
+
+	if (yytoken == TEOF) {
 		return CEOF;
-	do {
-		setprompt(1);
-	} while (nexttoken() == TNL);
+	}
+	setprompt(1);
+	if (nexttoken() == TNL)
+		return NULL;
 	if (yytoken == TEOF)
 		return CEOF;
 
@@ -55,14 +57,16 @@ struct cmd *parseline(void)
 
 static struct cmd *parselist(void)
 {
-	int op;
+	int op, cont;
 	struct cmd *c;
 
 	c = parsecond();
 
 	while (yytoken == TSEMI || yytoken == TBGND) {
 		op = yytoken == TSEMI ? CLIST : CBGND;
-		c = bincmd(op, c, nexttoken() == TNL ? NULL : parsecond());
+		nexttoken();
+		cont = yytoken != TNL && yytoken != TEOF;
+		c = bincmd(op, c, cont ? parsecond() : NULL);
 	}
 	return c;
 }

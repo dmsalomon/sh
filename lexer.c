@@ -8,7 +8,7 @@
 #include "lexer.h"
 #include "mem.h"
 
-int yytoken = -1;
+int yytoken = TNL;
 char *yytext;
 unsigned int quoteflag;
 

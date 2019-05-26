@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "input.h"
+#include "lexer.h"
 #include "mem.h"
 #include "output.h"
 #include "redir.h"
@@ -162,6 +163,7 @@ void setinputstring(char *string)
 	parsefile->nleft = strlen(string);
 	parsefile->buf = NULL;
 	plineno = 1;
+	yytoken = TNL;
 }
 
 static void pushfile()
@@ -184,6 +186,7 @@ void popfile()
 	if (pf->buf)
 		free(pf->buf);
 	parsefile = pf->prev;
+	yytoken = TNL;
 	free(pf);
 }
 

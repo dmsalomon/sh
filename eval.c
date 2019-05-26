@@ -17,9 +17,11 @@
 #include "cmd.h"
 #include "error.h"
 #include "eval.h"
+#include "input.h"
 #include "mem.h"
 #include "output.h"
 #include "redir.h"
+#include "parser.h"
 
 int exitstatus;
 
@@ -137,6 +139,50 @@ int evalcmd(struct cexec *cmd)
 		return (*bt)(cmd);
 	else
 		return runprog(cmd);
+}
+
+int evalstring(char *s)
+{
+	struct cmd *cmd;
+	struct stackmark mark;
+	int status;
+
+	s = sstrdup(s);
+	setinputstring(s);
+	pushstackmark(&mark);
+
+	status = 0;
+	for (; (cmd = parseline()) != CEOF; popstackmark(&mark))
+		if (cmd)
+			status = eval(cmd);
+
+	popfile();
+	stfree(s);
+
+	return status;
+}
+
+int eval_builtin(struct cexec *cmd)
+{
+	char *p;
+	char *concat;
+	char **ap;
+
+	if (cmd->argc < 2) {
+		return 0;
+	} else if (cmd->argc == 2) {
+		p = cmd->argv[1];
+	} else {
+		STARTSTACKSTR(concat);
+		for (ap = cmd->argv + 1; *ap; ap++) {
+			for (p = *ap; *p; p++)
+				STPUTC(*p, concat);
+			STPUTC(' ', concat);
+		}
+		STPUTC('\0', concat);
+		p = ststrsave(concat);
+	}
+	return evalstring(p);
 }
 
 static int evalpipe(struct cmd *c)
