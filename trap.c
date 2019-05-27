@@ -1,5 +1,6 @@
 
 #include <signal.h>
+#include <string.h>
 
 #include "error.h"
 #include "output.h"
@@ -7,23 +8,30 @@
 
 void signal_init(void)
 {
-	struct sigaction sa;
+	struct sigaction act;
 
-	sa.sa_flags = 0;
-	sigfillset(&(sa.sa_mask));
+	act.sa_flags = 0;
+	sigfillset(&act.sa_mask);
 
-	sa.sa_handler = onsig;
-	if (sigaction(SIGINT, &sa, 0))
+	act.sa_handler = onsig;
+	if (sigaction(SIGINT, &act, 0))
 		die("sigaction: SIGINT:");
 
-	sa.sa_handler = SIG_IGN;
-	if (sigaction(SIGQUIT, &sa, 0))
-		die("sigaction: SIGQUIT:");
-	if (sigaction(SIGTSTP, &sa, 0))
-		die("sigaction: SIGTSTP:");
+	act.sa_handler = SIG_IGN;
+	int signals[] = {
+		SIGQUIT, SIGTSTP, SIGTERM, SIGTTOU, SIGTTIN, 0,
+	};
+
+	for (int *p = signals; *p; p++)
+		if (sigaction(*p, &act, 0))
+			die("sigaction: %s:", strsignal(*p));
 }
 
 void onsig(int sig)
 {
-	onint();
+	if (sig == SIGINT) {
+		if (!suppressint)
+			onint();
+		intpending = 1;
+	}
 }

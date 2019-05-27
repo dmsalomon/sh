@@ -3,9 +3,7 @@
  * evaluate commands.
  */
 
-#include <ctype.h>
-#include <fcntl.h>
-#include <limits.h>
+#include <errno.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,8 +20,10 @@
 #include "output.h"
 #include "redir.h"
 #include "parser.h"
+#include "trap.h"
 
 int exitstatus;
+int forked;
 
 static pid_t dfork(void);
 static int evalpipe(struct cmd *);
@@ -282,6 +282,11 @@ static pid_t dfork()
 	pid_t pid = fork();
 	if (pid < 0)
 		die("fork:");
+	if (pid == 0) {
+		forked++;
+		sigclearmask();
+		closescript();
+	}
 	return pid;
 }
 
@@ -306,20 +311,32 @@ int runprog(struct cexec *cmd)
 	return waitsh(pid);
 }
 
-int waitsh(int pid) {
+int waitsh(pid_t pid) {
 	int status;
 
-	if (waitpid(pid, &status, WUNTRACED) < 0)
-		die("%d:", pid);
+	INTOFF;
+again:
+	if (waitpid(pid, &status, WUNTRACED) < 0) {
+		if (errno == EINTR)
+			goto again;
+		else
+			die("%d:", pid);
+	}
+	INTON;
 
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
-	if (WIFSIGNALED(status))
-		return 128 + WTERMSIG(status);
+
+	if (WIFSIGNALED(status)) {
+		int sig = WTERMSIG(status);
+		if (sig != SIGINT)
+			perrorf("%d %s", pid, strsignal(sig));
+		return 128 + sig;
+	}
 
 	if (WIFSTOPPED(status)) {
 		perrorf("%d suspended", pid);
-		return 128 + WTERMSIG(status);
+		return 128 + WSTOPSIG(status);
 	}
 
 	perrorf("Unexpected status (0x%x)\n", status);

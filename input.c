@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "error.h"
+#include "eval.h"
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
@@ -131,15 +133,18 @@ int setinputfile(const char *fname, int flags)
 {
 	int fd;
 
+	INTOFF;
 	if ((fd = open(fname, O_RDONLY)) < 0) {
 		if (flags & INPUT_NOFILE_OK)
 			goto out;
-		/* TODO signal error */
+		exitstatus = 127;
+		raiseexc(EXERR, "can't open %s:", fname);
 	}
 	if (fd < 10)
 		fd = savefd(fd);
 	setinputfd(fd, flags & INPUT_PUSH_FILE);
 out:
+	INTON;
 	return fd;
 }
 
@@ -158,29 +163,34 @@ static void setinputfd(int fd, int push)
 
 void setinputstring(char *string)
 {
+	INTOFF;
 	pushfile();
 	parsefile->nextc = string;
 	parsefile->nleft = strlen(string);
 	parsefile->buf = NULL;
 	plineno = 1;
 	yytoken = TNL;
+	INTON;
 }
 
 static void pushfile()
 {
 	struct parsefile *pf;
 
+	INTOFF;
 	pf = xmalloc(sizeof(*pf));
 	pf->prev = parsefile;
 	pf->fd = -1;
 	pf->unget = 0;
 	parsefile = pf;
+	INTON;
 }
 
 void popfile()
 {
 	struct parsefile *pf = parsefile;
 
+	INTOFF;
 	if (pf->fd >= 0)
 		close(pf->fd);
 	if (pf->buf)
@@ -188,6 +198,7 @@ void popfile()
 	parsefile = pf->prev;
 	yytoken = TNL;
 	free(pf);
+	INTON;
 }
 
 void unwindfiles(struct parsefile *stop)

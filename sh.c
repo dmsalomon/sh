@@ -36,6 +36,7 @@ int main(int argc, char **argv)
 		popstackmark(&mark);
 		if (exception == EXINT)
 			fputc('\n', stderr);
+		FORCEINTON;
 	} else {
 		signal_init();
 	}
