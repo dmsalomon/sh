@@ -18,7 +18,6 @@ static struct cmd *parsecond(void);
 static struct cmd *parsepipe(void);
 static struct cmd *parsecmd(void);
 static struct cmd *parsecmpcmd(void);
-static struct cmd *parsesub(void);
 static struct cmd *parsecmplist(void);
 static struct cmd *parseloop(void);
 static struct cmd *parsedo(void);
@@ -148,6 +147,8 @@ static struct cmd *parsecmpcmd(void)
 	case TLBRC:
 	case TLPAR:
 		cmd = parsesub();
+		/* need to explictly consume TRPAR */
+		nexttoken();
 		break;
 	case TWHLE:
 		cmd = parseloop();
@@ -168,7 +169,7 @@ static struct cmd *parsecmpcmd(void)
 	return cmd;
 }
 
-static struct cmd *parsesub(void)
+struct cmd *parsesub(void)
 {
 	int open;
 	struct cmd *cmd;
@@ -184,7 +185,8 @@ static struct cmd *parsesub(void)
 
 	if (yytoken != open+1)
 		unexpected();
-	nexttoken();
+	if (yytoken != TRPAR)
+		nexttoken();
 
 	return cmd;
 }
@@ -321,6 +323,7 @@ static struct cmd *parsesimple(void)
 	while (yytoken == TWORD) {
 		*app = stalloc(sizeof(**app));
 		(*app)->text = yytext;
+		(*app)->subst = subst;
 		app = &(*app)->next;
 		ecmd->argc++;
 		nexttoken();

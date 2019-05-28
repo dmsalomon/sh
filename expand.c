@@ -1,9 +1,12 @@
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "cmd.h"
 #include "eval.h"
+#include "lexer.h"
 #include "mem.h"
 #include "parser.h"
 #include "var.h"
@@ -18,6 +21,7 @@ static int len;
 extern int rootpid;
 
 static struct arg *expandarg(struct arg *);
+static void procvalue(struct cmd *);
 static void varvalue(const char *);
 static void numappend(int);
 static void expappend(const char *);
@@ -48,6 +52,7 @@ static struct arg *expandarg(struct arg *arg)
 	int c;
 	char *s, *p;
 	struct arg *first;
+	struct cbinary *subst = arg->subst;
 
 	len = 0;
 	quote = 0;
@@ -79,6 +84,10 @@ static struct arg *expandarg(struct arg *arg)
 			varvalue(s);
 			*p = c;
 			s += (p-s-1);
+		} else if (c == CTLSUBST) {
+			assert(subst);
+			procvalue(subst->left);
+			subst = (struct cbinary *)subst->right;
 		} else {
 			cappend(c);
 		}
@@ -92,9 +101,32 @@ static struct arg *expandarg(struct arg *arg)
 		STPUTC('\0', expdest);
 
 	cur->text = ststrsave(expdest);
+	cur->subst = NULL;
 	cur->next = NULL;
 
 	return first;
+}
+
+static void procvalue(struct cmd *cmd)
+{
+	char buf[512];
+	int n, pip[2];
+	pid_t pid;
+
+	pipe(pip);
+
+	if ((pid = dfork()) == 0) {
+		close(pip[0]);
+		dup2(pip[1], 1);
+		_exit(eval(cmd));
+	}
+	close(pip[1]);
+
+	while ((n = read(pip[0], buf, sizeof(buf)-1)) > 0) {
+		buf[n] = '\0';
+		expappend(buf);
+	}
+	close(pip[0]);
 }
 
 static void varvalue(const char *name)

@@ -13,6 +13,7 @@ int eval(struct cmd *);
 int evalcmd(struct cexec *);
 int evalstring(char *s);
 int runprog(struct cexec *);
+pid_t dfork(void);
 int waitsh(int);
 
 void unwindloops(void);

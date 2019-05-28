@@ -32,8 +32,11 @@
 
 #define KWDOFFSET 14
 
+#include "cmd.h"
+
 extern int yytoken;
 extern char *yytext;
+extern struct cbinary *subst;
 extern const char *tokname[];
 extern const char *toktxt[];
 
@@ -41,5 +44,7 @@ int nexttoken(void);
 int skipspaces(void);
 int checkwd(void);
 void setprompt(int);
+
+#define CTLSUBST (-125)
 
 #endif

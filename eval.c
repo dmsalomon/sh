@@ -27,7 +27,6 @@
 int exitstatus;
 int forked;
 
-static pid_t dfork(void);
 static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
 
@@ -146,8 +145,9 @@ int evalcmd(struct cexec *cmd)
 		setvareq(ap->text, 0);
 
 	expargs = ap;
-	for (; ap; ap = ap->next)
+	for (; ap; ap = ap->next) {
 		argc++;
+	}
 
 	if (argc == 0)
 		return 0;
@@ -307,7 +307,7 @@ int break_builtin(struct cexec *cmd)
 /*
  * fork and die on failure
  */
-static pid_t dfork()
+pid_t dfork()
 {
 	pid_t pid = fork();
 	if (pid < 0)

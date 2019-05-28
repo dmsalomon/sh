@@ -1,16 +1,20 @@
 
+#include <alloca.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "cmd.h"
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
+#include "parser.h"
 #include "var.h"
 
 int yytoken = TNL;
 char *yytext;
+struct cbinary *subst;
 
 const char *tokname[] = {
 	"TEOF",
@@ -216,13 +220,16 @@ int checkwd(void)
  */
 static int word(void)
 {
-	int c, str;
-	char *ypp;
+	int c, str, savelen;
+	char *ypp, *saveword;
+
+	struct cbinary *cbase, **cpp;
+	struct cunary *cu;
 
 	str = 0;
+	cpp = &cbase;
 
-	STARTSTACKSTR(yytext);
-	ypp = yytext;
+	STARTSTACKSTR(ypp);
 
 	while ((c = readchar()) != PEOF) {
 		if (!str && strchr(" ()<>&\n\t\r\v;|", c)) {
@@ -230,12 +237,43 @@ static int word(void)
 			break;
 		}
 
+		if (c == '$') {
+			if ((c = readchar()) == PEOF) {
+				STPUTC('$', ypp);
+				break;
+			}
+			if (c == '(') {
+				/* save the stack string */
+				savelen = ypp - stacknext;
+				if (savelen > 0) {
+					saveword = alloca(savelen);
+					memcpy(saveword, stacknext, savelen);
+				}
+
+				/* parse cmd substitution */
+				yytoken = TLPAR;
+				cu = (struct cunary *)parsesub();
+				*cpp = (struct cbinary *)bincmd(CLIST, cu->cmd, NULL);
+				cpp = (struct cbinary **)&(*cpp)->right;
+
+				/* restore the stack string */
+				ypp = growstackto(savelen+1);
+				if (savelen > 0) {
+					memcpy(ypp, saveword, savelen);
+					ypp += savelen;
+				}
+				c = CTLSUBST;
+			} else {
+				STPUTC('$', ypp);
+			}
+		}
+
 		/* string delimiter */
 		if (c == '\'' || c == '"')
 			str = str == c ? '\0' : (str ? str : c);
 
 		if (c == '\\' && str != '\'') {
-			STPUTC(c, ypp);
+			STPUTC('\\', ypp);
 			if ((c = pgetc()) == PEOF)
 				break;
 		}
@@ -252,13 +290,10 @@ static int word(void)
 
 	STPUTC('\0', ypp);
 	yytext = ststrsave(ypp);
+	*cpp = NULL;
+	subst = cbase;
 
 	return TWORD;
-}
-
-static int subshell(void)
-{
-	return 0;
 }
 
 void setprompt(int which)

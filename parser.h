@@ -5,6 +5,7 @@
 #include <ctype.h>
 
 struct cmd *parseline(void);
+struct cmd *parsesub(void);
 
 int isassignment(const char *word);
 char *endofname(const char *);

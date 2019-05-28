@@ -34,6 +34,7 @@ struct cexec {
 struct arg {
 	char *text;
 	struct arg *next;
+	struct cbinary *subst;
 };
 
 struct cbinary {
