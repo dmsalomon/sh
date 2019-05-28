@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -165,8 +166,34 @@ out_free:
 		s = xstrdup(s);
 	vp->text = s;
 	vp->flags = flags;
+	if (flags & VEXPORT)
+		putenv(s);
 out:
 	return vp;
+}
+
+int export_builtin(struct cexec *cmd)
+{
+	/* lets not bother listing the variables
+	 * forget POSIX, at least for now*/
+
+	int flag = cmd->argv[0][0] == 'r' ? VRDONLY : VEXPORT;
+	char *ap, **app, *p;
+	struct var *vp;
+
+	for (app = &cmd->argv[1]; (ap = *app); app++) {
+		if ((p = strchr(ap, '=')) != NULL) {
+			p++;
+		} else {
+			if ((vp = *findvar(hashvar(ap), ap))) {
+				vp->flags |= flag;
+				continue;
+			}
+		}
+		setvar(ap, p, flag);
+	}
+
+	return 0;
 }
 
 static struct var **hashvar(const char *p)

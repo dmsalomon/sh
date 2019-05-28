@@ -11,6 +11,7 @@
 #include "cmd.h"
 #include "eval.h"
 #include "output.h"
+#include "var.h"
 
 #define LEN(a)		(sizeof(a) / sizeof(a[0]))
 #define N_BUILTINS	LEN(builtins)
@@ -35,8 +36,10 @@ builtins[] = {
 	{"continue", break_builtin},
 	{"eval",     eval_builtin},
 	{"exec",     exec_builtin},
+	{"export",   export_builtin},
 	{"exit",     exit_builtin},
 	{"fg",       fg_builtin},
+	{"readonly", export_builtin},
 };
 
 /*
@@ -127,3 +130,4 @@ static int fg_builtin(struct cexec *cmd)
 
 	return waitsh(pid);
 }
+

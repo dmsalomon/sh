@@ -2,6 +2,8 @@
 #ifndef VAR_H
 #define VAR_H
 
+#include "cmd.h"
+
 #define VEXPORT (1 << 1)
 #define VRDONLY (1 << 2)
 #define VSTSTAT (1 << 3)
@@ -26,6 +28,8 @@ struct var *setvar(const char *, const char *, int);
 struct var *setvareq(char *, int);
 char *lookupvar(const char *);
 int varcmp(const char *, const char *);
+
+int export_builtin(struct cexec *);
 
 #define vps1 varinit[0]
 #define vps2 (&vps1)[1]
