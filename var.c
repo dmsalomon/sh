@@ -53,6 +53,9 @@ void initvar(void)
 		*vpp = vp;
 	} while (++vp < end);
 
+	if (!geteuid())
+		vps1.text = "PS1=# ";
+
 	for (envp = environ; *envp; envp++) {
 		p = endofname(*envp);
 		if (p != *envp && *p == '=') {
@@ -63,9 +66,6 @@ void initvar(void)
 	static char ppid[32] = "PPID=";
 	snprintf(ppid+5, sizeof(ppid)-5, "%ld", (long)getppid());
 	setvareq(ppid, VTXSTAT);
-
-	if (!geteuid())
-		vps1.text = "PS1=# ";
 }
 
 char *lookupvar(const char *name)
