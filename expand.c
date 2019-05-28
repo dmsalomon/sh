@@ -60,6 +60,7 @@ static struct arg *expandarg(struct arg *arg)
 		} else if (!quote && (c == '\'' || c == '"')) {
 			quote = c;
 		} else if (c == '\\' && !quote) {
+			cappend(*++s);
 		} else if (c == '\\' && quote == '"') {
 			if (!strchr("\\\"`", *(s+1))) {
 				cappend(c);
