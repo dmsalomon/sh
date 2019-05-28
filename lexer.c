@@ -256,6 +256,11 @@ static int word(void)
 	return TWORD;
 }
 
+static int subshell(void)
+{
+	return 0;
+}
+
 void setprompt(int which)
 {
 	if (isatty(parsefile->fd)) {

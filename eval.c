@@ -33,6 +33,8 @@ static int evalloop(struct cmd *);
 
 int eval(struct cmd *c)
 {
+	pid_t pid;
+
 	struct cexec *ce;
 	struct cif   *ci;
 	struct cbinary *cb;
@@ -105,10 +107,15 @@ int eval(struct cmd *c)
 		break;
 
 	case CBRC:
-	case CSUB:
-		/* for now subshells are fake */
 		cu = (struct cunary*)c;
 		exitstatus = eval(cu->cmd);
+		break;
+
+	case CSUB:
+		cu = (struct cunary*)c;
+		if ((pid = dfork()) == 0)
+			_exit(eval(cu->cmd));
+		exitstatus = waitsh(pid);
 		break;
 
 	default:
