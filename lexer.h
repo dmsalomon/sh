@@ -34,7 +34,6 @@
 
 extern int yytoken;
 extern char *yytext;
-extern unsigned int quoteflag;
 extern const char *tokname[];
 extern const char *toktxt[];
 

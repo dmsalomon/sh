@@ -15,12 +15,14 @@
 #include "cmd.h"
 #include "error.h"
 #include "eval.h"
+#include "expand.h"
 #include "input.h"
 #include "mem.h"
 #include "output.h"
 #include "redir.h"
 #include "parser.h"
 #include "trap.h"
+#include "var.h"
 
 int exitstatus;
 int forked;
@@ -66,6 +68,17 @@ int eval(struct cmd *c)
 
 		if (eval(cb->left) ^ (cb->type == CAND))
 			exitstatus = eval(cb->right);
+		break;
+
+	case CBGND:
+		cb = (struct cbinary*)c;
+
+		if (dfork() == 0)
+			_exit(eval(cb->left));
+		if (cb->right)
+			exitstatus = eval(cb->right);
+		else
+			exitstatus = 0;
 		break;
 
 	case CLIST:
@@ -116,22 +129,28 @@ int eval(struct cmd *c)
 int evalcmd(struct cexec *cmd)
 {
 	int i;
-	char **argv;
-	struct arg *ap;
+	char argc, **argv;
+	struct arg *expargs, *ap;
 
-	argv = stalloc(sizeof(*argv)*(cmd->argc+1));
-	for (i = 0, ap = cmd->args; i < cmd->argc; i++, ap = ap->next)
+	argc = 0;
+	expargs = expandargs(cmd->args);
+
+	for (ap = expargs; ap && isassignment(ap->text); ap = ap->next)
+		setvareq(ap->text, 0);
+
+	expargs = ap;
+	for (; ap; ap = ap->next)
+		argc++;
+
+	if (argc == 0)
+		return 0;
+
+	argv = stalloc(sizeof(*argv)*(argc+1));
+	for (i = 0, ap = expargs; i < argc; i++, ap = ap->next)
 		argv[i] = ap->text;
 	argv[i] = NULL;
 	cmd->argv = argv;
-
-	/* hack the $? for now */
-	/* TODO support real variables */
-	static char buf[32];
-	snprintf(buf, 32, "%d", exitstatus);
-	for (i =0; i <cmd->argc;i++)
-		if (strcmp(cmd->argv[i], "$?") == 0)
-			cmd->argv[i] = buf;
+	cmd->argc = argc;
 
 	builtin_func bt = get_builtin(cmd->argv[0]);
 
@@ -175,10 +194,10 @@ int eval_builtin(struct cexec *cmd)
 	} else {
 		STARTSTACKSTR(concat);
 		for (ap = cmd->argv + 1; *ap; ap++) {
-			for (p = *ap; *p; p++)
-				STPUTC(*p, concat);
+			concat = stputs(*ap, concat);
 			STPUTC(' ', concat);
 		}
+		concat--;
 		STPUTC('\0', concat);
 		p = ststrsave(concat);
 	}
@@ -243,11 +262,13 @@ static int evalloop(struct cmd *c)
 	int mod, reason;
 	struct looploc here;
 	struct cloop *cmd;
+	struct stackmark mark;
 
 	cmd = (struct cloop*)c;
 	mod = cmd->type == CWHILE;
 
 	if ((reason = setjmp(here.loc))) {
+		popstackmark(&mark);
 		exitstatus = 0;
 		if (reason == SKIPBREAK)
 			goto brk;
@@ -255,9 +276,12 @@ static int evalloop(struct cmd *c)
 	here.next = loops;
 	loops = &here;
 
+	pushstackmark(&mark);
 
-	while (eval(cmd->cond) ^ mod)
+	while (eval(cmd->cond) ^ mod) {
 		exitstatus = eval(cmd->body);
+		popstackmark(&mark);
+	}
 
 brk:
 	return exitstatus;

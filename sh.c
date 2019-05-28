@@ -17,6 +17,9 @@
 #include "parser.h"
 #include "redir.h"
 #include "trap.h"
+#include "var.h"
+
+int rootpid;
 
 int main(int argc, char **argv)
 {
@@ -26,6 +29,7 @@ int main(int argc, char **argv)
 	struct jmploc jmploc;
 
 	pushstackmark(&mark);
+	rootpid = getpid();
 
 	if ((exception = setjmp(jmploc.loc))) {
 		/* reset the shell */
@@ -39,6 +43,7 @@ int main(int argc, char **argv)
 		FORCEINTON;
 	} else {
 		signal_init();
+		initvar();
 	}
 	handler = &jmploc;
 

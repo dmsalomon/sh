@@ -7,10 +7,10 @@
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
+#include "var.h"
 
 int yytoken = TNL;
 char *yytext;
-unsigned int quoteflag;
 
 const char *tokname[] = {
 	"TEOF",
@@ -81,7 +81,6 @@ int nexttoken(void)
 	int c;
 
 	c = skipspaces();
-	quoteflag = 0;
 
 	switch (c) {
 	case PEOF:
@@ -148,7 +147,6 @@ int nexttoken(void)
 	if (0) {
 		printf("nexttoken(): %s `%s`", tokname[yytoken], yytext);
 		if (yytoken == TWORD) printf(" size: %ld", strlen(yytext));
-		if (quoteflag) printf(" quote");
 		printf("\n");
 		fflush(stdout);
 	}
@@ -203,7 +201,7 @@ int checkwd(void)
 {
 	const char **p;
 
-	if (yytoken != TWORD || quoteflag)
+	if (yytoken != TWORD)
 		return yytoken;
 
 	for (p = &toktxt[KWDOFFSET]; *p; p++)
@@ -218,10 +216,10 @@ int checkwd(void)
  */
 static int word(void)
 {
-	int c, peekc, str;
+	int c, str;
 	char *ypp;
 
-	str = peekc = quoteflag = 0;
+	str = 0;
 
 	STARTSTACKSTR(yytext);
 	ypp = yytext;
@@ -233,35 +231,16 @@ static int word(void)
 		}
 
 		/* string delimiter */
-		if (c == '\'' || c == '"') {
+		if (c == '\'' || c == '"')
 			str = str == c ? '\0' : (str ? str : c);
-			quoteflag = 1;
-			if (!str || str == c)
-				continue;
-		}
 
-		if (c == '\\' && !str) {
-			c = pgetc();
-			if (c == PEOF)
+		if (c == '\\' && str != '\'') {
+			STPUTC(c, ypp);
+			if ((c = pgetc()) == PEOF)
 				break;
 		}
 
-		if (c == '\\' && str == '"') {
-			peekc = pgetc();
-			if (strchr("\\\"`", peekc)) {
-				c = peekc;
-				peekc = 0;
-			}
-		}
-
-insert:
 		STPUTC(c, ypp);
-
-		if (peekc) {
-			c = peekc;
-			peekc = 0;
-			goto insert;
-		}
 	}
 
 	if (c == PEOF && str) {
@@ -279,13 +258,13 @@ void setprompt(int which)
 	if (isatty(parsefile->fd)) {
 		switch (which) {
 		case 1:
-			fprintf(stderr, "$ ");
+			fprintf(stderr, ps1val);
 			break;
 		case 2:
-			fprintf(stderr, "> ");
+			fprintf(stderr, ps2val);
 			break;
 		default:
-			fprintf(stderr, "+ ");
+			fprintf(stderr, ps4val);
 			break;
 		}
 	}

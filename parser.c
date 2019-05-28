@@ -424,6 +424,27 @@ static int cmplistdone(void)
 	}
 }
 
+int isassignment(const char *word)
+{
+	char *p;
+
+	p = endofname(word);
+	return p != word && *p == '=';
+}
+
+char *endofname(const char *name)
+{
+	char *p;
+
+	p = (char *)name;
+	if (!is_name(*p))
+		return p;
+	while (*++p)
+		if (!is_in_name(*p))
+			break;
+	return p;
+}
+
 static int ionumber(const char *word)
 {
 	return (isdigit(word[0]) && !word[1]) ? (word[0] - '0') : (-1);

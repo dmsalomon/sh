@@ -151,8 +151,16 @@ char *growstackto(size_t len)
 	return stacknext;
 }
 
+char *stputs(const char *s, char *p)
+{
+	while (*s)
+		STPUTC(*s++, p);
+	return p;
+}
+
 char *sstrdup(const char *s)
 {
 	size_t len = strlen(s) + 1;
 	return memcpy(stalloc(len), s, len);
 }
+

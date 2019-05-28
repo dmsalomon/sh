@@ -16,6 +16,8 @@ OBJ=sh.o\
     redir.o\
     error.o\
     trap.o\
+    var.o\
+    expand.o\
 
 all: $(PROG)
 
