@@ -62,31 +62,39 @@ builtin_func get_builtin(char *name)
  * if no args are specified the shell
  * will try to cd to $HOME
  */
+
 static int cd_builtin(struct cexec *cmd)
 {
-	char *home;
+	int print = 0;
+	char *pwd, *dest;
 
 	if (cmd->argc > 2) {
 		perrorf("cd: too many args");
 		return 1;
 	}
 
-	if (cmd->argc == 2) {
-		if (chdir(cmd->argv[1])) {
-			perrorf("cd: %s:", cmd->argv[1]);
-			return 1;
-		}
+	dest = cmd->argv[1];
+	if (!dest) {
+		dest = lookupvar("HOME");
+	} else if (dest[0] == '-' && dest[1] == '\0') {
+		dest = lookupvar("OLDPWD");
+		print = 1;
 	}
-	else if ((home = getenv("HOME"))) {
-		if (chdir(home)) {
-			perrorf("cd: %s:", home);
-			return 1;
-		}
-	}
-	else {
+	if (!dest) {
 		perrorf("cd: no directory");
 		return 1;
 	}
+	pwd = lookupvar("PWD");
+
+	if (chdir(dest)) {
+		perrorf("cd: %s:", dest);
+		return 1;
+	}
+	if (print)
+		printf("%s\n", dest);
+
+	setvar("OLDPWD", pwd, VEXPORT);
+	setvar("PWD", getcwd(0, 0), VNOSAVE | VEXPORT);
 
 	return 0;
 }
