@@ -86,7 +86,7 @@ static struct arg *expandarg(struct arg *arg)
 	}
 
 	if (!len)
-		return NULL;
+		cappend('\0');
 
 	if (expdest != stacknext)
 		STPUTC('\0', expdest);
@@ -130,20 +130,26 @@ static void numappend(int n)
 
 static void expappend(const char *s)
 {
-	if (quote != '"') {
+	if (quote == '"') {
 		while (*s)
 			cappend(*s++);
 	}
 
+	int inword = 0;
+
 	const char *p;
 	for (p = s; *p; p++) {
 		if (strchr(IFS, *p)) {
-			cappend('\0');
+			if (inword)
+				cappend('\0');
+			inword = 0;
 			do {
 				p++;
-			} while (strchr(IFS, *p));
+			} while (*p && strchr(IFS, *p));
+			p--;
 		} else {
 			cappend(*p);
+			inword = 1;
 		}
 	}
 }
