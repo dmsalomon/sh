@@ -237,7 +237,7 @@ static int word(void)
 			break;
 		}
 
-		if (c == '$') {
+		if (c == '$' && str != '\'') {
 			if ((c = readchar()) == PEOF) {
 				STPUTC('$', ypp);
 				break;

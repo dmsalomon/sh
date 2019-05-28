@@ -126,6 +126,8 @@ static void procvalue(struct cmd *cmd)
 		buf[n] = '\0';
 		expappend(buf);
 	}
+	while (STTOPC(expdest) == '\n')
+		expdest--;
 	close(pip[0]);
 }
 

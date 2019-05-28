@@ -187,6 +187,8 @@ int export_builtin(struct cexec *cmd)
 		} else {
 			if ((vp = *findvar(hashvar(ap), ap))) {
 				vp->flags |= flag;
+				if (flag == VEXPORT)
+					putenv(vp->text);
 				continue;
 			}
 		}
