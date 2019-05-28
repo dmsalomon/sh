@@ -241,6 +241,9 @@ static int word(void)
 		}
 
 		STPUTC(c, ypp);
+
+		if (c == '\n')
+			setprompt(2);
 	}
 
 	if (c == PEOF && str) {
