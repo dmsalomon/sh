@@ -235,7 +235,7 @@ static struct looploc {
 	jmp_buf loc;
 } *loops;
 
-static int poploop(int lvl, int reason)
+static int poploop(int lvl, int type)
 {
 	struct looploc *jmppnt;
 
@@ -248,18 +248,17 @@ static int poploop(int lvl, int reason)
 	jmppnt = loops;
 	loops = loops->next;
 
-	longjmp(jmppnt->loc, reason);
+	longjmp(jmppnt->loc, type);
 }
 
 void unwindloops(void)
 {
-	while (loops)
-		loops = loops->next;
+	loops = NULL;
 }
 
 static int evalloop(struct cmd *c)
 {
-	int mod, reason;
+	int mod, type;
 	struct looploc here;
 	struct cloop *cmd;
 	struct stackmark mark;
@@ -267,10 +266,10 @@ static int evalloop(struct cmd *c)
 	cmd = (struct cloop*)c;
 	mod = cmd->type == CWHILE;
 
-	if ((reason = setjmp(here.loc))) {
+	if ((type = setjmp(here.loc))) {
 		popstackmark(&mark);
 		exitstatus = 0;
-		if (reason == SKIPBREAK)
+		if (type == SKIPBREAK)
 			goto brk;
 	}
 	here.next = loops;
