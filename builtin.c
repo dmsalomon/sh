@@ -16,10 +16,11 @@
 #define LEN(a)		(sizeof(a) / sizeof(a[0]))
 #define N_BUILTINS	LEN(builtins)
 
-static int cd_builtin(struct cexec*);
-static int exit_builtin(struct cexec*);
-static int exec_builtin(struct cexec*);
-static int fg_builtin(struct cexec*);
+static int cd_builtin(struct cexec *);
+static int exit_builtin(struct cexec *);
+static int exec_builtin(struct cexec *);
+static int fg_builtin(struct cexec *);
+static int true_builtin(struct cexec *);
 
 /*
  * A struct to hold the builtin
@@ -38,8 +39,10 @@ builtins[] = {
 	{"exec",     exec_builtin},
 	{"export",   export_builtin},
 	{"exit",     exit_builtin},
+	{"false",    true_builtin},
 	{"fg",       fg_builtin},
 	{"readonly", export_builtin},
+	{"true",     true_builtin},
 };
 
 /*
@@ -129,5 +132,10 @@ static int fg_builtin(struct cexec *cmd)
 	}
 
 	return waitsh(pid);
+}
+
+static int true_builtin(struct cexec *cmd)
+{
+	return cmd->argv[0][0] == 'f';
 }
 
