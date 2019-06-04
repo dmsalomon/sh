@@ -182,7 +182,7 @@ repeat:
 		break;
 	default:
 		if (!isprint(c) && !ispunct(c) && !isspace(c))
-			fprintf(stderr, "invalid input: %c %d\n", c, c);
+			goto repeat;
 		break;
 	}
 

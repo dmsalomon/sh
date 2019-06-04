@@ -328,10 +328,10 @@ pid_t dfork()
  */
 int runprog(struct cexec *cmd)
 {
-	pid_t pid = dfork();
+	pid_t pid;
 
-	/* child */
-	if (pid == 0) {
+	if ((pid = dfork()) == 0) {
+		/* child */
 		execvp(cmd->argv[0], cmd->argv);
 		/* if error */
 		sdie(127, "%s: command not found", cmd->argv[0]);

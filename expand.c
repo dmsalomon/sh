@@ -67,7 +67,7 @@ static struct arg *expandarg(struct arg *arg)
 		} else if (c == '\\' && !quote) {
 			cappend(*++s);
 		} else if (c == '\\' && quote == '"') {
-			if (!strchr("\\\"`", *(s+1))) {
+			if (!strchr("$\\\"`", *(s+1))) {
 				cappend(c);
 			}
 			cappend(*++s);
@@ -109,8 +109,8 @@ static struct arg *expandarg(struct arg *arg)
 
 static void procvalue(struct cmd *cmd)
 {
-	char buf[512];
-	int n, pip[2];
+	char buf[BUFSIZ];
+	int n, lastc, pip[2];
 	pid_t pid;
 
 	pipe(pip);
@@ -122,12 +122,18 @@ static void procvalue(struct cmd *cmd)
 	}
 	close(pip[1]);
 
+	lastc = 0;
 	while ((n = read(pip[0], buf, sizeof(buf)-1)) > 0) {
 		buf[n] = '\0';
+		if (lastc && !strchr(IFS, lastc) && strchr(IFS, buf[0]))
+			cappend('\0');
 		expappend(buf);
+		lastc = buf[n-1];
 	}
-	while (STTOPC(expdest) == '\n')
+	if (buf[n-1] == '\n' && !STTOPC(expdest)) {
 		expdest--;
+		len--;
+	}
 	close(pip[0]);
 }
 
