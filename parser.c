@@ -36,7 +36,6 @@ struct cmd *parseline(void)
 {
 	struct cmd *c;
 
-
 	if (yytoken == TEOF) {
 		return CEOF;
 	}

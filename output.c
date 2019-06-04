@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "input.h"
 #include "output.h"
 
 /*
@@ -17,7 +18,7 @@
  */
 void vperrorf(const char *fmt, va_list ap)
 {
-	fprintf(stderr, "%s: ", PROGNAME);
+	fprintf(stderr, "%s: %d: ", PROGNAME, plineno-1);
 	vfprintf(stderr, fmt, ap);
 
 	if (fmt[0] && fmt[strlen(fmt)-1] != ':') {

@@ -61,8 +61,3 @@ void raiseerr(const char *fmt, ...)
 	va_end(ap);
 }
 
-void __inton(void)
-{
-	if (--suppressint == 0 && intpending)
-		onint();
-}

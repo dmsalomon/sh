@@ -26,8 +26,12 @@ extern volatile sig_atomic_t intpending;
 		barrier(); \
 		0; \
 	})
-void __inton(void);
-#define INTON __inton()
+#define INTON \
+	({ \
+		barrier(); \
+		if (--suppressint == 0 && intpending) onint(); \
+		0; \
+	})
 #define FORCEINTON \
 	({ \
 		barrier(); \

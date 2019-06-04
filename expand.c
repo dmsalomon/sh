@@ -9,6 +9,7 @@
 #include "lexer.h"
 #include "mem.h"
 #include "parser.h"
+#include "sh.h"
 #include "var.h"
 
 #define IFS " \n\t"
@@ -17,8 +18,6 @@ static struct arg *cur;
 static char *expdest;
 static int quote;
 static int len;
-
-extern int rootpid;
 
 static struct arg *expandarg(struct arg *);
 static void procvalue(struct cmd *);
@@ -129,6 +128,7 @@ static void procvalue(struct cmd *cmd)
 	while (STTOPC(expdest) == '\n')
 		expdest--;
 	close(pip[0]);
+	waitsh(pid);
 }
 
 static void varvalue(const char *name)

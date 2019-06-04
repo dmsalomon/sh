@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "cmd.h"
+#include "error.h"
 #include "mem.h"
 #include "output.h"
 #include "redir.h"
@@ -38,6 +39,7 @@ int pushredirect(struct credir *cr)
 		break;
 	}
 
+	INTOFF;
 	if ((ofd = open(cr->file, mode, 0666)) < 0) {
 		perrorf("%s:", cr->file);
 		goto bad;
@@ -58,13 +60,15 @@ int pushredirect(struct credir *cr)
 	rtab->next = redirlist;
 	redirlist = rtab;
 
+	INTON;
 	return cr->fd;
 
 del:
-	if (rtab->save)
+	if (rtab->save > 0)
 		close(rtab->save);
 	stfree(rtab);
 bad:
+	INTON;
 	return -1;
 }
 
@@ -75,6 +79,7 @@ void popredirect(void)
 	if (!redirlist)
 		return;
 
+	INTOFF;
 	rtab = redirlist;
 	redirlist = redirlist->next;
 
@@ -85,6 +90,7 @@ void popredirect(void)
 	} else {
 		close(rtab->fd);
 	}
+	INTON;
 }
 
 void unwindredir(void)

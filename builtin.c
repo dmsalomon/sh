@@ -11,6 +11,7 @@
 #include "cmd.h"
 #include "eval.h"
 #include "output.h"
+#include "sh.h"
 #include "var.h"
 
 #define LEN(a)		(sizeof(a) / sizeof(a[0]))
@@ -32,6 +33,7 @@ static struct {
 	builtin_func f;
 }
 builtins[] = {
+	{".",        source_builtin},
 	{"break",    break_builtin},
 	{"cd", 	     cd_builtin},
 	{"continue", break_builtin},
@@ -42,6 +44,7 @@ builtins[] = {
 	{"false",    true_builtin},
 	{"fg",       fg_builtin},
 	{"readonly", export_builtin},
+	{"source",   source_builtin},
 	{"true",     true_builtin},
 };
 
