@@ -326,24 +326,27 @@ pid_t dfork()
  */
 int runprog(struct cexec *cmd)
 {
+	int status;
 	pid_t pid;
 
 	INTOFF;
-
-	/* child */
 	if ((pid = dfork()) == 0) {
+		/* child */
 		execvp(cmd->argv[0], cmd->argv);
 		/* if error */
 		sdie(127, "%s: command not found", cmd->argv[0]);
 	}
 
 	/* parent */
-	return waitsh(pid);
+	status = waitsh(pid);
+	INTON;
+	return status;
 }
 
 int waitsh(pid_t pid) {
 	int status;
 
+	INTOFF;
 again:
 	if (waitpid(pid, &status, WUNTRACED) < 0) {
 		if (errno == EINTR)
