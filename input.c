@@ -148,9 +148,9 @@ out:
 	return fd;
 }
 
-static void setinputfd(int fd, int push)
+static void setinputfd(int fd, int flags)
 {
-	if (push) {
+	if (flags & INPUT_PUSH_FILE) {
 		pushfile();
 		parsefile->buf = NULL;
 	}
@@ -161,16 +161,16 @@ static void setinputfd(int fd, int push)
 	plineno = 1;
 }
 
-void setinputstring(char *string)
+void setinputstring(char *string, int flags)
 {
-	INTOFF;
-	pushfile();
+	if (flags & INPUT_PUSH_FILE)
+		pushfile();
 	parsefile->nextc = string;
 	parsefile->nleft = strlen(string);
 	parsefile->buf = NULL;
+	parsefile->fd = -1;
 	plineno = 1;
 	yytoken = TNL;
-	INTON;
 }
 
 static void pushfile()
@@ -215,9 +215,12 @@ void popallfiles()
 void closescript()
 {
 	popallfiles();
-	if (parsefile->fd > 0) {
+	if (parsefile->fd > 0)
 		close(parsefile->fd);
-		parsefile->fd = 0;
+	if (parsefile->fd != 0) {
+		parsefile->fd = -1;
+		parsefile->nleft = 0;
+		parsefile->unget = 0;
 	}
 }
 

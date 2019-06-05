@@ -25,7 +25,7 @@ extern struct parsefile *parsefile;
 int pgetc(void);
 void pungetc(void);
 int setinputfile(const char *, int);
-void setinputstring(char *);
+void setinputstring(char *, int);
 void popfile(void);
 void unwindfiles(struct parsefile *);
 void popallfiles(void);

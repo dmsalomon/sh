@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "cmd.h"
+#include "error.h"
 #include "eval.h"
 #include "lexer.h"
 #include "mem.h"
@@ -114,6 +115,8 @@ static void procvalue(struct cmd *cmd)
 
 	pipe(pip);
 
+	INTOFF;
+
 	if ((pid = dfork()) == 0) {
 		close(pip[0]);
 		dup2(pip[1], 1);
@@ -125,10 +128,10 @@ static void procvalue(struct cmd *cmd)
 		buf[n] = '\0';
 		expappend(buf);
 	}
-	while (STTOPC(expdest) == '\n')
-		expdest--;
 	close(pip[0]);
+
 	waitsh(pid);
+	INTON;
 }
 
 static void varvalue(const char *name)

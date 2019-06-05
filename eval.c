@@ -21,6 +21,7 @@
 #include "output.h"
 #include "redir.h"
 #include "parser.h"
+#include "sh.h"
 #include "trap.h"
 #include "var.h"
 
@@ -51,6 +52,8 @@ int eval(struct cmd *c)
 		if (pushredirect(cr) >= 0) {
 			exitstatus = eval(cr->cmd);
 			popredirect();
+		} else {
+			exitstatus = 2;
 		}
 		break;
 
@@ -169,19 +172,11 @@ int evalcmd(struct cexec *cmd)
 
 int evalstring(char *s)
 {
-	struct cmd *cmd;
-	struct stackmark mark;
 	int status;
 
 	s = sstrdup(s);
-	setinputstring(s);
-	pushstackmark(&mark);
-
-	status = 0;
-	for (; (cmd = parseline()) != CEOF; popstackmark(&mark))
-		if (cmd)
-			status = eval(cmd);
-
+	setinputstring(s, INPUT_PUSH_FILE);
+	status = repl();
 	popfile();
 	stfree(s);
 
@@ -333,6 +328,8 @@ int runprog(struct cexec *cmd)
 {
 	pid_t pid;
 
+	INTOFF;
+
 	/* child */
 	if ((pid = dfork()) == 0) {
 		execvp(cmd->argv[0], cmd->argv);
@@ -347,7 +344,6 @@ int runprog(struct cexec *cmd)
 int waitsh(pid_t pid) {
 	int status;
 
-	INTOFF;
 again:
 	if (waitpid(pid, &status, WUNTRACED) < 0) {
 		if (errno == EINTR)

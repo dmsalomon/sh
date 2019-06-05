@@ -6,6 +6,7 @@
 
 extern int rootpid;
 
+int repl(void);
 int source_builtin(struct cexec *);
 
 #endif

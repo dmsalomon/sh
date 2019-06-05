@@ -140,13 +140,13 @@ static struct cmd *parsecmd(void)
 
 static struct cmd *parsecmpcmd(void)
 {
-	struct cmd *cmd, *redir;
+	struct cmd *cmd;
 
 	switch (checkwd()) {
 	case TLBRC:
 	case TLPAR:
 		cmd = parsesub();
-		/* need to explictly consume TRPAR */
+		/* need to explictly consume TRPAR, see parsesub() */
 		nexttoken();
 		break;
 	case TWHLE:
@@ -162,8 +162,7 @@ static struct cmd *parsecmpcmd(void)
 		return NULL;
 	}
 
-	while ((redir = parseredir(cmd)) != cmd)
-		cmd = redir;
+	cmd = parseredir(cmd);
 
 	return cmd;
 }
@@ -184,8 +183,10 @@ struct cmd *parsesub(void)
 
 	if (yytoken != open+1)
 		unexpected();
-	if (yytoken != TRPAR)
-		nexttoken();
+
+	/* defer nexttoken() for caller
+	 * a hack necessary for cmd substitution parsing
+	 */
 
 	return cmd;
 }
@@ -338,6 +339,7 @@ static struct cmd *parseredir(struct cmd *cmd)
 {
 	int fd;
 	int op;
+	struct credir *cr;
 
 	for (;;) {
 		switch (yytoken) {
@@ -384,7 +386,15 @@ static struct cmd *parseredir(struct cmd *cmd)
 			goto out;
 		}
 
-		cmd = redircmd(cmd, yytext, op, fd);
+		/* stack redirection in FIFO order */
+		if (cmd->type == CREDIR) {
+			cr = (struct credir *)cmd;
+			cmd = redircmd(cr->cmd, yytext, op, fd);
+			cr->cmd = cmd;
+			cmd = (struct cmd *)cr;
+		} else {
+			cmd = redircmd(cmd, yytext, op, fd);
+		}
 		nexttoken();
 	}
 out:

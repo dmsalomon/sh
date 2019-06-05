@@ -3,9 +3,10 @@
  * A simple shell
  */
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "cmd.h"
@@ -23,20 +24,29 @@
 
 int rootpid;
 
-static int repl(void);
-
 int main(int argc, char **argv)
 {
 	int exception;
 	struct stackmark mark;
 	struct jmploc jmploc;
 
+	if (argc > 1) {
+		if (strcmp(argv[1], "-c") == 0) {
+			if (argc > 2)
+				setinputstring(argv[2], 0);
+			else
+				die("-c requires an argument");
+		} else {
+			setinputfile(argv[1], 0);
+		}
+	}
+
 	INTOFF;
 	if ((exception = setjmp(jmploc.loc))) {
 		/* reset the shell */
 		unwindredir();
 		unwindloops();
-		popallfiles();
+		closescript();
 		yytoken = TNL;
 		popstackmark(&mark);
 		if (exception == EXINT)
@@ -53,7 +63,7 @@ int main(int argc, char **argv)
 	return repl();
 }
 
-static int repl(void)
+int repl(void)
 {
 	int status = 0;
 	struct cmd *cmd;
@@ -61,10 +71,9 @@ static int repl(void)
 
 	pushstackmark(&mark);
 
-	for (; (cmd = parseline()) != CEOF; popstackmark(&mark)) {
-		if (!cmd) continue;
-		status = eval(cmd);
-	}
+	for (; (cmd = parseline()) != CEOF; popstackmark(&mark))
+		if (cmd)
+			status = eval(cmd);
 
 	return status;
 }
