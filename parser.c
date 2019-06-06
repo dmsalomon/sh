@@ -386,12 +386,16 @@ static struct cmd *parseredir(struct cmd *cmd)
 			goto out;
 		}
 
-		/* stack redirection in FIFO order */
+		/* stack redirection in FIFO order
+		 * this can be optimized but I dont care :)
+		 * realistically a command has very few redirections
+		 */
+
 		if (cmd->type == CREDIR) {
 			cr = (struct credir *)cmd;
-			cmd = redircmd(cr->cmd, yytext, op, fd);
-			cr->cmd = cmd;
-			cmd = (struct cmd *)cr;
+			while (cr->cmd->type == CREDIR)
+				cr = (struct credir*)cr->cmd;
+			cr->cmd = redircmd(cr->cmd, yytext, op, fd);
 		} else {
 			cmd = redircmd(cmd, yytext, op, fd);
 		}

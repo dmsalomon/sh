@@ -199,7 +199,8 @@ int eval_builtin(struct cexec *cmd)
 			concat = stputs(*ap, concat);
 			STPUTC(' ', concat);
 		}
-		concat--;
+		if (concat > stacknext)
+			concat--;
 		STPUTC('\0', concat);
 		p = ststrsave(concat);
 	}

@@ -47,8 +47,7 @@ void *stalloc(size_t n)
 	char *p;
 	size_t aligned;
 
-	/* aligned = MEMALIGN(n); */
-	aligned = n;
+	aligned = MEMALIGN(n);
 	if (aligned > stacknleft) {
 		size_t len;
 		size_t blocksize;
