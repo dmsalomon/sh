@@ -28,7 +28,7 @@ static int true_builtin(struct cexec *);
  * names with their corresponding
  * functions
  */
-static struct {
+static struct builtin {
 	char *name;
 	builtin_func f;
 }
@@ -48,16 +48,22 @@ builtins[] = {
 	{"true",     true_builtin},
 };
 
+static int builtincmp(const void *v1, const void *v2)
+{
+	struct builtin *b1 = (struct builtin*)v1;
+	struct builtin *b2 = (struct builtin*)v2;
+	return strcmp(b1->name, b2->name);
+}
+
 /*
  * return the builtin function associated
  * with a name, or NULL if not found
  */
 builtin_func get_builtin(char *name)
 {
-	for (int i = 0; i < N_BUILTINS; i++)
-		if (strcmp(name, builtins[i].name) == 0)
-			return builtins[i].f;
-	return NULL;
+	struct builtin *b;
+	b = bsearch(&name, builtins, N_BUILTINS, sizeof(struct builtin), builtincmp);
+	return b ? b->f : NULL;
 }
 
 /* change directory
