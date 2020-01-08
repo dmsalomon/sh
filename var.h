@@ -30,6 +30,7 @@ char *lookupvar(const char *);
 int varcmp(const char *, const char *);
 
 int export_builtin(struct cexec *);
+int read_builtin(struct cexec *);
 
 #define vps1 varinit[0]
 #define vps2 (&vps1)[1]

@@ -43,6 +43,7 @@ builtins[] = {
 	{"exit",     exit_builtin},
 	{"false",    true_builtin},
 	{"fg",       fg_builtin},
+	{"read",     read_builtin},
 	{"readonly", export_builtin},
 	{"source",   source_builtin},
 	{"true",     true_builtin},

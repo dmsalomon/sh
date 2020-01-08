@@ -7,13 +7,12 @@
 #include "cmd.h"
 #include "error.h"
 #include "eval.h"
+#include "expand.h"
 #include "lexer.h"
 #include "mem.h"
 #include "parser.h"
 #include "sh.h"
 #include "var.h"
-
-#define IFS " \n\t"
 
 static struct arg *cur;
 static char *expdest;

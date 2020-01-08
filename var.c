@@ -5,8 +5,10 @@
 #include <unistd.h>
 
 #include "error.h"
+#include "expand.h"
 #include "input.h"
 #include "mem.h"
+#include "output.h"
 #include "parser.h"
 #include "var.h"
 
@@ -66,6 +68,27 @@ void initvar(void)
 	static char ppid[32] = "PPID=";
 	snprintf(ppid+5, sizeof(ppid)-5, "%ld", (long)getppid());
 	setvareq(ppid, VTXSTAT);
+
+	/* set SHELL */
+	static char *shell = "SHELL=dmsh";
+	setvareq(shell, VEXPORT|VTXSTAT);
+
+	/* increment SHLVL */
+	char *shlvl;
+	int shlvlval;
+	static char shlvlbuf[12] = "SHLVL=";
+
+	if ((shlvl = lookupvar("SHLVL"))) {
+		shlvlval = atoi(shlvl) + 1;
+	} else {
+		shlvlval = 1;
+	}
+	if (shlvlval > 1023) {
+		perrorf("warning: shell level (%d) too high, resetting to 1", shlvlval);
+		shlvlval = 1;
+	}
+	snprintf(shlvlbuf+6, sizeof(shlvlbuf)-6, "%d", shlvlval);
+	setvareq(shlvlbuf, VEXPORT|VTXSTAT);
 }
 
 char *lookupvar(const char *name)
@@ -194,6 +217,33 @@ int export_builtin(struct cexec *cmd)
 		}
 		setvar(ap, p, flag);
 	}
+
+	return 0;
+}
+
+int read_builtin(struct cexec *cmd)
+{
+	int n;
+	char c, *line;
+
+	if (cmd->argc < 2) {
+		perrorf("read: arg count");
+		return 2;
+	}
+
+	STARTSTACKSTR(line);
+	while ((n = read(0, &c, 1)) > 0 && c != '\n')
+		STPUTC(c, line);
+	if (n < 1)
+		return 1;
+	STACKSTRNUL(line);
+
+	if (*endofname(cmd->argv[1])) {
+		perrorf("read: %s: bad variable name", cmd->argv[1]);
+		return 1;
+	}
+
+	setvar(cmd->argv[1], stacknext, 0);
 
 	return 0;
 }
