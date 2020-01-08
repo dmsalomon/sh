@@ -26,9 +26,11 @@
 #define TELSE 21
 #define TELIF 22
 #define TFI   23
-#define TLBRC 24
-#define TRBRC 25
-#define TMAX  26
+#define TFOR  24
+#define TIN   25
+#define TLBRC 26
+#define TRBRC 27
+#define TMAX  28
 
 #define KWDOFFSET 14
 

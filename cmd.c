@@ -83,3 +83,13 @@ struct cmd *ifcmd(struct cmd *cond, struct cmd *ifp, struct cmd *elsep)
 	return (struct cmd*)cmd;
 }
 
+struct cmd *forcmd(const char *var, struct arg *args, struct cmd *body)
+{
+	struct cfor *cmd;
+	cmd = stalloc(sizeof(*cmd));
+	cmd->type = CFOR;
+	cmd->var = var;
+	cmd->list = args;
+	cmd->body = body;
+	return (struct cmd*)cmd;
+}

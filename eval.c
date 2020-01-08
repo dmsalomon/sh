@@ -30,16 +30,17 @@ int forked;
 
 static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
+static int evalfor(struct cmd *);
 
 int eval(struct cmd *c)
 {
 	pid_t pid;
 
-	struct cexec *ce;
-	struct cif   *ci;
+	struct cexec   *ce;
+	struct cif     *ci;
 	struct cbinary *cb;
-	struct credir *cr;
-	struct cunary *cu;
+	struct credir  *cr;
+	struct cunary  *cu;
 
 	switch (c->type) {
 	case CEXEC:
@@ -106,6 +107,10 @@ int eval(struct cmd *c)
 	case CWHILE:
 	case CUNTIL:
 		exitstatus = evalloop(c);
+		break;
+
+	case CFOR:
+		exitstatus = evalfor(c);
 		break;
 
 	case CBRC:
@@ -251,6 +256,7 @@ static int poploop(int lvl, int type)
 	jmppnt = loops;
 	loops = loops->next;
 
+	exitstatus = 0;
 	longjmp(jmppnt->loc, type);
 }
 
@@ -271,7 +277,6 @@ static int evalloop(struct cmd *c)
 
 	if ((type = setjmp(here.loc))) {
 		popstackmark(&mark);
-		exitstatus = 0;
 		if (type == SKIPBREAK)
 			goto brk;
 	}
@@ -300,6 +305,44 @@ int break_builtin(struct cexec *cmd)
 		raiseerr("break: bad number: %s", cmd->argv[1]);
 	type = (cmd->argv[0][0] == 'c') ? SKIPCONT : SKIPBREAK;
 	return poploop(n, type);
+}
+
+static int evalfor(struct cmd *c)
+{
+	int type;
+	struct cfor *cmd;
+	struct arg *lp, *explist;
+	struct stackmark fmark, mark;
+	struct looploc here;
+
+	cmd = (struct cfor*)c;
+	pushstackmark(&fmark);
+
+	if (!(explist = expandargs(cmd->list))) {
+		popstackmark(&fmark);
+		return exitstatus = 0;
+	}
+
+	here.next = loops;
+	loops = &here;
+	pushstackmark(&mark);
+
+	for (lp = explist; lp; lp = lp->next) {
+		if ((type = setjmp(here.loc))) {
+			popstackmark(&mark);
+			if (type == SKIPBREAK)
+				break;
+			else
+				continue;
+		}
+		setvar(cmd->var, lp->text, 0);
+		exitstatus = eval(cmd->body);
+		popstackmark(&mark);
+	}
+
+	loops = here.next;
+	popstackmark(&fmark);
+	return exitstatus;
 }
 
 /*

@@ -15,6 +15,7 @@
 #define CLIST 10
 #define CBGND 11
 #define CIF 12
+#define CFOR 13
 
 extern const char *cmdname[];
 
@@ -69,6 +70,13 @@ struct cif {
 	struct cmd *elsepart;
 };
 
+struct cfor {
+	int type;
+	const char *var;
+	struct arg *list;
+	struct cmd *body;
+};
+
 /* constructors */
 struct cmd *execcmd(void);
 struct cmd *bincmd(int, struct cmd *, struct cmd *);
@@ -76,5 +84,6 @@ struct cmd *unrycmd(int, struct cmd *);
 struct cmd *redircmd(struct cmd *, char *, int, int);
 struct cmd *loopcmd(int, struct cmd *, struct cmd *);
 struct cmd *ifcmd(struct cmd *, struct cmd *, struct cmd *);
+struct cmd *forcmd(const char *, struct arg *, struct cmd *);
 
 #endif

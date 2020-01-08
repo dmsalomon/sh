@@ -19,6 +19,7 @@ static struct arg *cur;
 static char *expdest;
 static int quote;
 static int len;
+static int filename;
 
 static struct arg *expandarg(struct arg *);
 static void procvalue(struct cmd *);
@@ -50,6 +51,7 @@ struct arg *expandargs(struct arg *args)
 static struct arg *expandarg(struct arg *arg)
 {
 	int c;
+	int wasquoted = 0;
 	char *s, *p;
 	struct arg *first;
 	struct cbinary *subst = arg->subst;
@@ -64,6 +66,7 @@ static struct arg *expandarg(struct arg *arg)
 			quote = 0;
 		} else if (!quote && (c == '\'' || c == '"')) {
 			quote = c;
+			wasquoted = 1;
 		} else if (c == '\\' && !quote) {
 			cappend(*++s);
 		} else if (c == '\\' && quote == '"') {
@@ -94,11 +97,16 @@ static struct arg *expandarg(struct arg *arg)
 		s++;
 	}
 
-	if (!len)
+	if (len == 0) {
+		if (wasquoted) {
+			cappend('\0');
+		} else {
+			stfree(first);
+			return NULL;
+		}
+	} else if (STTOPC(expdest) != '\0') {
 		cappend('\0');
-
-	if (expdest != stacknext)
-		STPUTC('\0', expdest);
+	}
 
 	cur->text = ststrsave(expdest);
 	cur->subst = NULL;
@@ -136,7 +144,7 @@ static void procvalue(struct cmd *cmd)
 	waitsh(pid);
 	INTON;
 
-	if (buf[n-1] == '\n' && expdest && STTOPC(expdest) == '\0') {
+	if ((quote||filename) && expdest && strchr(IFS, lastc) && STTOPC(expdest) == lastc) {
 		expdest--;
 		len--;
 	}
@@ -175,7 +183,7 @@ static void numappend(int n)
 
 static void expappend(const char *s)
 {
-	if (quote == '"') {
+	if (quote == '"' || filename) {
 		while (*s)
 			cappend(*s++);
 	}
@@ -199,11 +207,18 @@ static void expappend(const char *s)
 	}
 }
 
+char *expfilename(struct arg *arg) {
+	filename = 1;
+	arg = expandarg(arg);
+	filename = 0;
+	return arg->text;
+}
+
 static void cappend(int c)
 {
 	if (!expdest) {
 		STARTSTACKSTR(expdest);
-	} else if (!STTOPC(expdest)) {
+	} else if (STTOPC(expdest) == '\0') {
 		cur->text = ststrsave(expdest);
 		cur->next = stalloc(sizeof(*cur));
 		cur = cur->next;

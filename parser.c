@@ -8,6 +8,7 @@
 
 #include "cmd.h"
 #include "error.h"
+#include "expand.h"
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
@@ -22,6 +23,7 @@ static struct cmd *parsecmplist(void);
 static struct cmd *parseloop(void);
 static struct cmd *parsedo(void);
 static struct cmd *parseif(void);
+static struct cmd *parsefor(void);
 static struct cmd *parseelse(void);
 static struct cmd *parsesimple(void);
 static struct cmd *parseredir(struct cmd *);
@@ -30,6 +32,9 @@ static void unexpected(void);
 
 static int cmplistdone(void);
 static int separator(void);
+static int sequential_sep(void);
+static int newline_list(void);
+static void linebreak(void);
 static int ionumber(const char *);
 
 struct cmd *parseline(void)
@@ -132,6 +137,7 @@ static struct cmd *parsecmd(void)
 	case TWHLE:
 	case TUNTL:
 	case TIF:
+	case TFOR:
 		return parsecmpcmd();
 	default:
 		return parsesimple();
@@ -150,13 +156,14 @@ static struct cmd *parsecmpcmd(void)
 		nexttoken();
 		break;
 	case TWHLE:
-		cmd = parseloop();
-		break;
 	case TUNTL:
 		cmd = parseloop();
 		break;
 	case TIF:
 		cmd = parseif();
+		break;
+	case TFOR:
+		cmd = parsefor();
 		break;
 	default:
 		return NULL;
@@ -226,9 +233,6 @@ static struct cmd *parseloop(void)
 	nexttoken();
 
 	cond = parsecmplist();
-	if (yytoken != TDO)
-		unexpected();
-
 	body = parsedo();
 
 	return loopcmd(looptype, cond, body);
@@ -238,7 +242,7 @@ static struct cmd *parsedo(void)
 {
 	struct cmd *c;
 
-	if (yytoken != TDO)
+	if (checkwd() != TDO)
 		unexpected();
 	nexttoken();
 
@@ -308,6 +312,41 @@ static struct cmd *parseelse(void)
 	return ifcmd(cond, ifpart, elsepart);
 }
 
+static struct cmd *parsefor(void)
+{
+	const char *var;
+	struct arg *ap=NULL, **app=&ap;
+	struct cmd *body;
+
+	if (yytoken != TFOR)
+		unexpected();
+	nexttoken();
+
+	/* check for bad loop var */
+	if (yytoken != TWORD || *endofname(yytext))
+		unexpected();
+	var = yytext;
+	nexttoken();
+
+	linebreak();
+
+	if (checkwd() != TIN)
+		unexpected();
+
+	while (nexttoken() == TWORD) {
+		*app = stalloc(sizeof(**app));
+		(*app)->text = yytext;
+		(*app)->subst = subst;
+		app = &(*app)->next;
+	}
+
+	sequential_sep();
+
+	body = parsedo();
+
+	return forcmd(var, ap, body);
+}
+
 static struct cmd *parsesimple(void)
 {
 	struct cmd *cmd;
@@ -340,6 +379,7 @@ static struct cmd *parseredir(struct cmd *cmd)
 	int fd;
 	int op;
 	struct credir *cr;
+	char *filename;
 
 	for (;;) {
 		switch (yytoken) {
@@ -377,6 +417,7 @@ static struct cmd *parseredir(struct cmd *cmd)
 			break;
 		default:
 			unexpected();
+			goto out;
 		}
 
 		nexttoken();
@@ -385,6 +426,13 @@ static struct cmd *parseredir(struct cmd *cmd)
 			unexpected();
 			goto out;
 		}
+
+		/* expand yytext for full filename */
+		struct arg *a = stalloc(sizeof(*a));
+		a->text = yytext;
+		a->subst = subst;
+		a->next = NULL;
+		filename = expfilename(a);
 
 		/* stack redirection in FIFO order
 		 * this can be optimized but I dont care :)
@@ -395,9 +443,9 @@ static struct cmd *parseredir(struct cmd *cmd)
 			cr = (struct credir *)cmd;
 			while (cr->cmd->type == CREDIR)
 				cr = (struct credir*)cr->cmd;
-			cr->cmd = redircmd(cr->cmd, yytext, op, fd);
+			cr->cmd = redircmd(cr->cmd, filename, op, fd);
 		} else {
-			cmd = redircmd(cmd, yytext, op, fd);
+			cmd = redircmd(cmd, filename, op, fd);
 		}
 		nexttoken();
 	}
@@ -407,20 +455,47 @@ out:
 
 static int separator(void)
 {
-	int sep = 0;
-
-	if (yytoken == TSEMI || yytoken == TBGND) {
+	switch (yytoken) {
+	case TSEMI:
+	case TBGND:
 		nexttoken();
-		sep = 1;
+		linebreak();
+		return 1;
+	default:
+		return newline_list();
 	}
+}
 
+static int sequential_sep(void)
+{
+	switch (yytoken) {
+	case TSEMI:
+		nexttoken();
+		linebreak();
+		return 1;
+	default:
+		return newline_list();
+	}
+}
+
+static int newline_list(void)
+{
+	if (yytoken != TNL)
+		return 0;
+
+	do {
+		setprompt(2);
+	} while (nexttoken() == TNL);
+
+	return 1;
+}
+
+static void linebreak(void)
+{
 	while (yytoken == TNL) {
 		setprompt(2);
 		nexttoken();
-		sep = 1;
 	}
-
-	return sep;
 }
 
 static int cmplistdone(void)

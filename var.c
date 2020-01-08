@@ -205,7 +205,7 @@ static struct var **hashvar(const char *p)
 	hashval = ((unsigned char) *p) << 4;
 	while (*p && *p != '=')
 		hashval += (unsigned char) *p++;
-	return &vartab[hashval & VTABSIZE];
+	return &vartab[hashval % VTABSIZE];
 }
 
 int varcmp(const char *p, const char *q)
