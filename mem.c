@@ -96,7 +96,7 @@ void popstackmark(struct stackmark *mark)
 	}
 	stacknext = mark->stacknext;
 	stacknleft = mark->stacknleft;
-	sstrend = mark->stacknext + mark->stacknleft;
+	sstrend = stacknext + stacknleft;
 }
 
 static void growstackblock(size_t min)

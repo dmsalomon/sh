@@ -190,9 +190,11 @@ int evalstring(char *s)
 
 int eval_builtin(struct cexec *cmd)
 {
-	char *p;
-	char *concat;
-	char **ap;
+	int status;
+	char *p, *concat, **ap;
+	struct stackmark mark;
+
+	pushstackmark(&mark);
 
 	if (cmd->argc < 2) {
 		return 0;
@@ -206,10 +208,12 @@ int eval_builtin(struct cexec *cmd)
 		}
 		if (concat > stacknext)
 			concat--;
-		STPUTC('\0', concat);
+		STACKSTRNUL(concat);
 		p = ststrsave(concat);
 	}
-	return evalstring(p);
+	status = evalstring(p);
+	popstackmark(&mark);
+	return status;
 }
 
 static int evalpipe(struct cmd *c)

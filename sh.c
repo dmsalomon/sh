@@ -26,7 +26,7 @@ int rootpid;
 
 int main(int argc, char **argv)
 {
-	int exception;
+	int fd, exception;
 	struct stackmark mark;
 	struct jmploc jmploc;
 
@@ -37,7 +37,9 @@ int main(int argc, char **argv)
 			else
 				die("-c requires an argument");
 		} else {
-			setinputfile(argv[1], 0);
+			fd = setinputfile(argv[1], INPUT_NOFILE_OK);
+			if (fd < 0)
+				sdie(127, "%s:", argv[1]);
 		}
 	}
 

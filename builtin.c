@@ -32,6 +32,7 @@ static struct builtin {
 	char *name;
 	builtin_func f;
 }
+/* must be listed in alphabetical order for bsearch */
 builtins[] = {
 	{".",        source_builtin},
 	{"break",    break_builtin},
@@ -39,8 +40,8 @@ builtins[] = {
 	{"continue", break_builtin},
 	{"eval",     eval_builtin},
 	{"exec",     exec_builtin},
-	{"export",   export_builtin},
 	{"exit",     exit_builtin},
+	{"export",   export_builtin},
 	{"false",    true_builtin},
 	{"fg",       fg_builtin},
 	{"read",     read_builtin},
