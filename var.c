@@ -17,10 +17,11 @@
 char linenovar[sizeof("LINENO=")+sizeof(int)*8+2] = "LINENO=";
 
 struct var varinit[] = {
-	{ 0, VSTSTAT|VTXSTAT, "PS1=$ ",  0 },
-	{ 0, VSTSTAT|VTXSTAT, "PS2=> ",  0 },
-	{ 0, VSTSTAT|VTXSTAT, "PS4=+ ",  0 },
-	{ 0, VSTSTAT|VTXSTAT, linenovar, 0 },
+	{ 0, VSTSTAT|VTXSTAT, "PS1=$ ",    0 },
+	{ 0, VSTSTAT|VTXSTAT, "PS2=> ",    0 },
+	{ 0, VSTSTAT|VTXSTAT, "PS4=+ ",    0 },
+	{ 0, VSTSTAT|VTXSTAT, linenovar,   0 },
+	{ 0, VSTSTAT|VTXSTAT, "IFS= \t\n", 0 },
 };
 
 static struct var *vartab[VTABSIZE];

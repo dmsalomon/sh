@@ -36,11 +36,13 @@ int read_builtin(struct cexec *);
 #define vps2 (&vps1)[1]
 #define vps4 (&vps2)[1]
 #define vlineno (&vps4)[1]
+#define vifs (&vlineno)[1]
 
 #define ps1val (vps1.text + 4)
 #define ps2val (vps2.text + 4)
 #define ps4val (vps4.text + 4)
 #define linenoval (vlineno.text + 7)
+#define IFS (vifs.text + 4)
 
 static inline int varequal(const char *p, const char *q)
 {

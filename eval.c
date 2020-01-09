@@ -227,11 +227,16 @@ static int evalpipe(struct cmd *c)
 			close(pip[0]);
 			dup2(pip[1], 1);
 			eval(cmd->left);
+			close(pip[1]);
+			close(1);
 			_exit(0);
 		}
 		close(pip[1]);
 		dup2(pip[0], 0);
 		status = eval(cmd->right);
+		/* close to cause SIGPIPE */
+		close(pip[0]);
+		close(0);
 		waitsh(pl);
 		_exit(status);
 	}
@@ -287,6 +292,8 @@ static int evalloop(struct cmd *c)
 
 	while (eval(cmd->cond) ^ mod) {
 		exitstatus = eval(cmd->body);
+		if (exitstatus == 128 + SIGPIPE)
+			break;
 		popstackmark(&mark);
 	}
 
@@ -387,7 +394,8 @@ int runprog(struct cexec *cmd)
 	return status;
 }
 
-int waitsh(pid_t pid) {
+int waitsh(pid_t pid)
+{
 	int status;
 
 	INTOFF;
@@ -395,8 +403,10 @@ again:
 	if (waitpid(pid, &status, WUNTRACED) < 0) {
 		if (errno == EINTR)
 			goto again;
-		else
+		else if (!forked)
 			die("%d:", pid);
+		else
+			_exit(1);
 	}
 	INTON;
 
@@ -405,16 +415,19 @@ again:
 
 	if (WIFSIGNALED(status)) {
 		int sig = WTERMSIG(status);
-		if (sig != SIGINT)
+		if (sig != SIGINT && !forked)
 			perrorf("%d %s", pid, strsignal(sig));
 		return 128 + sig;
 	}
 
 	if (WIFSTOPPED(status)) {
-		perrorf("%d suspended", pid);
+		if (!forked)
+			perrorf("%d suspended", pid);
 		return 128 + WSTOPSIG(status);
 	}
 
-	perrorf("Unexpected status (0x%x)\n", status);
+	if (!forked)
+		perrorf("Unexpected status (0x%x)\n", status);
 	return status & 0xff;
 }
+

@@ -143,7 +143,7 @@ static void procvalue(struct cmd *cmd)
 	waitsh(pid);
 	INTON;
 
-	if ((quote||filename) && expdest && strchr(IFS, lastc) && STTOPC(expdest) == lastc) {
+	if ((quote||filename) && expdest && lastc == '\n' && STTOPC(expdest) == '\n') {
 		expdest--;
 		len--;
 	}
