@@ -170,15 +170,6 @@ static int readchar(void)
 
 repeat:
 	switch (c = pgetc()) {
-	case '\\':
-		if ((c = pgetc()) == '\n') {
-			newline();
-			setprompt(2);
-			goto repeat;
-		}
-		pungetc();
-		c = '\\';
-		break;
 	case '\n':
 		newline();
 		break;

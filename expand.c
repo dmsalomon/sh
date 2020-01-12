@@ -67,12 +67,13 @@ static struct arg *expandarg(struct arg *arg)
 			quote = c;
 			wasquoted = 1;
 		} else if (c == '\\' && !quote) {
-			cappend(*++s);
-		} else if (c == '\\' && quote == '"') {
-			if (!strchr("$\\\"`", *(s+1))) {
+			if ((c = *++s) != '\n')
 				cappend(c);
-			}
-			cappend(*++s);
+		} else if (c == '\\' && quote == '"') {
+			if (!strchr("$\\\"`\n", (c = *++s)))
+				cappend('\\');
+			if (c != '\n')
+				cappend(c);
 		} else if (c == '$' && quote != '\'') {
 			c = *++s;
 			if (c && strchr("$?", c))
