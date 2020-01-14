@@ -22,6 +22,9 @@ static int exit_builtin(struct cexec *);
 static int exec_builtin(struct cexec *);
 static int fg_builtin(struct cexec *);
 static int true_builtin(struct cexec *);
+static int args_builtin(struct cexec *);
+static int builtin_builtin(struct cexec *);
+static int command_builtin(struct cexec *);
 
 /*
  * A struct to hold the builtin
@@ -35,8 +38,11 @@ static struct builtin {
 /* must be listed in alphabetical order for bsearch */
 builtins[] = {
 	{".",        source_builtin},
+	{"args",     args_builtin},
 	{"break",    break_builtin},
+	{"builtin",  builtin_builtin},
 	{"cd", 	     cd_builtin},
+	{"command",  command_builtin},
 	{"continue", break_builtin},
 	{"eval",     eval_builtin},
 	{"exec",     exec_builtin},
@@ -158,3 +164,42 @@ static int true_builtin(struct cexec *cmd)
 	return cmd->argv[0][0] == 'f';
 }
 
+/* print the argument,
+ * useful for debugging */
+static int args_builtin(struct cexec *cmd)
+{
+	char **app;
+
+	printf("argc: %d\n", cmd->argc-1);
+	for (app=cmd->argv+1; *app; app++) {
+		printf("`%s`: %ld\n", *app, strlen(*app));
+	}
+
+	return 0;
+}
+
+static int builtin_builtin(struct cexec *cmd)
+{
+	cmd->argv++;
+	cmd->argc--;
+
+	builtin_func bt = get_builtin(cmd->argv[0]);
+
+	if (!bt) {
+		perrorf("builtin: %s: not a shell builtin", cmd->argv[0]);
+		return 1;
+	}
+
+	return (*bt)(cmd);
+}
+
+static int command_builtin(struct cexec *cmd)
+{
+	cmd->argc--;
+	cmd->argv++;
+
+	if (cmd->argc == 0)
+		return 0;
+
+	return runprog(cmd);
+}
