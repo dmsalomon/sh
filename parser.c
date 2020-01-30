@@ -27,6 +27,7 @@ static struct cmd *parsefor(void);
 static struct cmd *parseelse(void);
 static struct cmd *parsesimple(void);
 static struct cmd *parseredir(struct cmd *);
+static struct cmd *parsefunc(char *);
 
 static void unexpected(void);
 
@@ -314,20 +315,18 @@ static struct cmd *parseelse(void)
 
 static struct cmd *parsefor(void)
 {
-	const char *var;
-	struct arg *ap=NULL, **app=&ap;
+	char *var;
+	struct arg *ap, **app=&ap;
 	struct cmd *body;
 
 	if (yytoken != TFOR)
 		unexpected();
-	nexttoken();
 
 	/* check for bad loop var */
-	if (yytoken != TWORD || *endofname(yytext))
+	if (nexttoken() != TWORD || *endofname(var = yytext))
 		unexpected();
-	var = yytext;
-	nexttoken();
 
+	nexttoken();
 	linebreak();
 
 	if (checkwd() != TIN)
@@ -339,6 +338,7 @@ static struct cmd *parsefor(void)
 		(*app)->subst = subst;
 		app = &(*app)->next;
 	}
+	*app = NULL;
 
 	sequential_sep();
 
@@ -369,9 +369,34 @@ static struct cmd *parsesimple(void)
 		cmd = parseredir(cmd);
 	}
 	*app = NULL;
+
+	if (yytoken == TLPAR && ecmd->args->next == NULL)
+		return parsefunc(ecmd->args->text);
+
 	if (!ecmd->argc)
 		return NULL;
 	return cmd;
+}
+
+static struct cmd *parsefunc(char *name)
+{
+	struct cmd *body;
+
+	if (yytoken != TLPAR)
+		unexpected();
+	if (nexttoken() != TRPAR)
+		unexpected();
+
+	nexttoken();
+	linebreak();
+
+	body = parsecmpcmd();
+	if (!body)
+		body = parsesimple();
+	if (!body)
+		unexpected();
+
+	return funccmd(name, body);
 }
 
 static struct cmd *parseredir(struct cmd *cmd)

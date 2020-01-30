@@ -32,6 +32,8 @@ static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
 
+struct cfunc *last;
+
 int eval(struct cmd *c)
 {
 	pid_t pid;
@@ -41,6 +43,7 @@ int eval(struct cmd *c)
 	struct cbinary *cb;
 	struct credir  *cr;
 	struct cunary  *cu;
+	struct cfunc   *cf;
 
 	switch (c->type) {
 	case CEXEC:
@@ -123,6 +126,16 @@ int eval(struct cmd *c)
 		if ((pid = dfork()) == 0)
 			_exit(eval(cu->cmd));
 		exitstatus = waitsh(pid);
+		break;
+
+	case CFUNC:
+		cf = (struct cfunc*)c;
+		if (last) {
+			perrorf("evaluating function `%s`", last->name);
+			exitstatus = eval(last->body);
+			freecmd((struct cmd*)last);
+		}
+		last = (struct cfunc*)copycmd((struct cmd*)cf);
 		break;
 
 	default:

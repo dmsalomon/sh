@@ -16,6 +16,7 @@
 #define CBGND 11
 #define CIF 12
 #define CFOR 13
+#define CFUNC 14
 
 extern const char *cmdname[];
 
@@ -72,8 +73,14 @@ struct cif {
 
 struct cfor {
 	int type;
-	const char *var;
+	char *var;
 	struct arg *list;
+	struct cmd *body;
+};
+
+struct cfunc {
+	int type;
+	char *name;
 	struct cmd *body;
 };
 
@@ -84,6 +91,13 @@ struct cmd *unrycmd(int, struct cmd *);
 struct cmd *redircmd(struct cmd *, char *, int, int);
 struct cmd *loopcmd(int, struct cmd *, struct cmd *);
 struct cmd *ifcmd(struct cmd *, struct cmd *, struct cmd *);
-struct cmd *forcmd(const char *, struct arg *, struct cmd *);
+struct cmd *forcmd(char *, struct arg *, struct cmd *);
+struct cmd *funccmd(char *, struct cmd *);
+
+/* deepcopy */
+struct arg *copyargs(struct arg *);
+struct cmd *copycmd(struct cmd *);
+void freeargs(struct arg *);
+void freecmd(struct cmd *);
 
 #endif
