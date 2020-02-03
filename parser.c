@@ -29,7 +29,8 @@ static struct cmd *parsesimple(void);
 static struct cmd *parseredir(struct cmd *);
 static struct cmd *parsefunc(char *);
 
-static void unexpected(void);
+static void expecting(int);
+static inline void unexpected(void);
 
 static int cmplistdone(void);
 static int separator(void);
@@ -190,7 +191,7 @@ struct cmd *parsesub(void)
 #endif
 
 	if (yytoken != open+1)
-		unexpected();
+		expecting(open+1);
 
 	/* defer nexttoken() for caller
 	 * a hack necessary for cmd substitution parsing
@@ -244,13 +245,13 @@ static struct cmd *parsedo(void)
 	struct cmd *c;
 
 	if (checkwd() != TDO)
-		unexpected();
+		expecting(TDO);
 	nexttoken();
 
 	c = parsecmplist();
 
 	if (yytoken != TDONE)
-		unexpected();
+		expecting(TDONE);
 	nexttoken();
 
 	return c;
@@ -261,12 +262,12 @@ static struct cmd *parseif(void)
 	struct cmd *cond, *ifpart, *elsepart;
 
 	if (yytoken != TIF)
-		unexpected();
+		expecting(TIF);
 	nexttoken();
 
 	cond = parsecmplist();
 	if (yytoken != TTHEN)
-		unexpected();
+		expecting(TTHEN);
 	nexttoken();
 
 	ifpart = parsecmplist();
@@ -298,7 +299,7 @@ static struct cmd *parseelse(void)
 	nexttoken();
 	cond = parsecmplist();
 	if (yytoken != TTHEN)
-		unexpected();
+		expecting(TTHEN);
 	nexttoken();
 
 	ifpart = parsecmplist();
@@ -320,7 +321,7 @@ static struct cmd *parsefor(void)
 	struct cmd *body;
 
 	if (yytoken != TFOR)
-		unexpected();
+		expecting(TFOR);
 
 	/* check for bad loop var */
 	if (nexttoken() != TWORD || *endofname(var = yytext))
@@ -330,7 +331,7 @@ static struct cmd *parsefor(void)
 	linebreak();
 
 	if (checkwd() != TIN)
-		unexpected();
+		expecting(TIN);
 
 	while (nexttoken() == TWORD) {
 		*app = stalloc(sizeof(**app));
@@ -383,9 +384,9 @@ static struct cmd *parsefunc(char *name)
 	struct cmd *body;
 
 	if (yytoken != TLPAR)
-		unexpected();
+		expecting(TLPAR);
 	if (nexttoken() != TRPAR)
-		unexpected();
+		expecting(TRPAR);
 
 	nexttoken();
 	linebreak();
@@ -566,7 +567,12 @@ static int ionumber(const char *word)
 	return (isdigit(word[0]) && !word[1]) ? (word[0] - '0') : (-1);
 }
 
-static void unexpected()
+static inline void unexpected()
+{
+	expecting(-1);
+}
+
+static void expecting(int tok)
 {
 	int c;
 
@@ -577,5 +583,8 @@ static void unexpected()
 		while ((c = pgetc()) != PEOF && c != '\n')
 			;
 
-	raiseerr("%d: syntax: `%s` unexpected", plineno, yytext);
+	if (tok > 0)
+		raiseerr("%d: syntax: `%s` unexpected (expecting `%s`)", plineno, yytext, toktxt[tok]);
+	else
+		raiseerr("%d: syntax: `%s` unexpected", plineno, yytext);
 }
