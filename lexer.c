@@ -296,13 +296,13 @@ void setprompt(int which)
 	if (isatty(parsefile->fd)) {
 		switch (which) {
 		case 1:
-			fprintf(stderr, ps1val);
+			fprintf(stderr, "%s", ps1val);
 			break;
 		case 2:
-			fprintf(stderr, ps2val);
+			fprintf(stderr, "%s", ps2val);
 			break;
 		default:
-			fprintf(stderr, ps4val);
+			fprintf(stderr, "%s", ps4val);
 			break;
 		}
 	}
