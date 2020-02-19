@@ -309,8 +309,6 @@ static int evalloop(struct cmd *c)
 
 	while (eval(cmd->cond) ^ mod) {
 		exitstatus = eval(cmd->body);
-		if (exitstatus == 128 + SIGPIPE)
-			break;
 		popstackmark(&mark);
 	}
 
@@ -361,8 +359,6 @@ static int evalfor(struct cmd *c)
 		}
 		setvar(cmd->var, lp->text, 0);
 		exitstatus = eval(cmd->body);
-		if (exitstatus == 128 + SIGPIPE)
-			break;
 		popstackmark(&mark);
 	}
 

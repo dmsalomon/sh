@@ -33,4 +33,6 @@ $(TAR): clean
 
 dist: $(TAR)
 
-.PHONY: all clean dist
+re: clean all
+
+.PHONY: all clean dist re

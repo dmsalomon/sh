@@ -18,6 +18,7 @@
 #define N_BUILTINS	LEN(builtins)
 
 static int cd_builtin(struct cexec *);
+static int echo_builtin(struct cexec *);
 static int exit_builtin(struct cexec *);
 static int exec_builtin(struct cexec *);
 static int fg_builtin(struct cexec *);
@@ -44,6 +45,7 @@ builtins[] = {
 	{"cd", 	     cd_builtin},
 	{"command",  command_builtin},
 	{"continue", break_builtin},
+	{"echo",     echo_builtin},
 	{"eval",     eval_builtin},
 	{"exec",     exec_builtin},
 	{"exit",     exit_builtin},
@@ -72,6 +74,21 @@ builtin_func get_builtin(char *name)
 	struct builtin *b;
 	b = bsearch(&name, builtins, N_BUILTINS, sizeof(struct builtin), builtincmp);
 	return b ? b->f : NULL;
+}
+
+static int echo_builtin(struct cexec *cmd)
+{
+	int i = 1;
+
+	while (i < cmd->argc) {
+		printf("%s", cmd->argv[i]);
+		if (++i < cmd->argc)
+			printf(" ");
+	}
+	printf("\n");
+	fflush(stdout);
+
+	return 0;
 }
 
 /* change directory
