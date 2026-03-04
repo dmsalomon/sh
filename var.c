@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include "error.h"
-#include "expand.h"
 #include "input.h"
 #include "mem.h"
 #include "output.h"
@@ -14,14 +13,16 @@
 
 #define VTABSIZE 39
 
-char linenovar[sizeof("LINENO=")+sizeof(int)*8+2] = "LINENO=";
+static char ppid[32] = "PPID=";
+static char linenovar[sizeof("LINENO=")+sizeof(int)*8+2] = "LINENO=";
 
 struct var varinit[] = {
-	{ 0, VSTSTAT|VTXSTAT, "PS1=$ ",    0 },
-	{ 0, VSTSTAT|VTXSTAT, "PS2=> ",    0 },
-	{ 0, VSTSTAT|VTXSTAT, "PS4=+ ",    0 },
-	{ 0, VSTSTAT|VTXSTAT, linenovar,   0 },
-	{ 0, VSTSTAT|VTXSTAT, "IFS= \t\n", 0 },
+	{ 0, VSTSTAT|VTXSTAT,         "PS1=$ ",    0 },
+	{ 0, VSTSTAT|VTXSTAT,         "PS2=> ",    0 },
+	{ 0, VSTSTAT|VTXSTAT,         "PS4=+ ",    0 },
+	{ 0, VSTSTAT|VTXSTAT,         linenovar,   0 },
+	{ 0, VSTSTAT|VTXSTAT,         "IFS= \t\n", 0 },
+	{ 0, VSTSTAT|VTXSTAT|VRDONLY, ppid,        0 },
 };
 
 static struct var *vartab[VTABSIZE];
@@ -29,7 +30,7 @@ static struct var *vartab[VTABSIZE];
 static struct var **hashvar(const char *);
 static struct var **findvar(struct var **, const char *);
 
-#ifndef HAVE_STRCHRNUL
+#ifdef NO_STRCHRNUL
 static char *strchrnul(const char *s, int c)
 {
 	while (*s && *s != c)
@@ -66,9 +67,7 @@ void initvar(void)
 		}
 	}
 
-	static char ppid[32] = "PPID=";
 	snprintf(ppid+5, sizeof(ppid)-5, "%ld", (long)getppid());
-	setvareq(ppid, VTXSTAT);
 
 	/* set SHELL */
 	static char *shell = "SHELL=dmsh";
@@ -76,7 +75,7 @@ void initvar(void)
 
 	/* increment SHLVL */
 	char *shlvl;
-	int shlvlval;
+	unsigned int shlvlval;
 	static char shlvlbuf[12] = "SHLVL=";
 
 	if ((shlvl = lookupvar("SHLVL"))) {
@@ -85,10 +84,10 @@ void initvar(void)
 		shlvlval = 1;
 	}
 	if (shlvlval > 1023) {
-		perrorf("warning: shell level (%d) too high, resetting to 1", shlvlval);
+		perrorf("warning: shell level (%u) too high, resetting to 1", shlvlval);
 		shlvlval = 1;
 	}
-	snprintf(shlvlbuf+6, sizeof(shlvlbuf)-6, "%d", shlvlval);
+	snprintf(shlvlbuf+6, sizeof(shlvlbuf)-6, "%u", shlvlval);
 	setvareq(shlvlbuf, VEXPORT|VTXSTAT);
 }
 
@@ -199,7 +198,7 @@ out:
 int export_builtin(struct cexec *cmd)
 {
 	/* lets not bother listing the variables
-	 * forget POSIX, at least for now*/
+	 * forget POSIX, at least for now */
 
 	int flag = cmd->argv[0][0] == 'r' ? VRDONLY : VEXPORT;
 	char *ap, **app, *p;

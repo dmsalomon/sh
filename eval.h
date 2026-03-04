@@ -4,10 +4,12 @@
 #ifndef EVAL_H
 #define EVAL_H
 
+#include <sys/types.h>
+#include "cmd.h"
+
 extern int forked;
 extern int exitstatus;
 
-#include "cmd.h"
 
 int eval(struct cmd *);
 int evalcmd(struct cexec *);

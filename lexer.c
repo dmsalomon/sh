@@ -82,12 +82,12 @@ const char *toktxt[] = {
 
 static int readchar(void);
 static int word(void);
-static void comment(void);
 
 int nexttoken(void)
 {
 	int c;
 
+repeat:
 	c = skipspaces();
 
 	switch (c) {
@@ -141,8 +141,9 @@ int nexttoken(void)
 		yytoken = TNL;
 		break;
 	case '#':
-		comment();
-		return nexttoken();
+    // leave the newline behind to act as a separator
+		consumeline(0);
+    goto repeat;
 	default:
 		pungetc();
 		yytoken = word();
@@ -269,7 +270,7 @@ static int word(void)
 
 		if (c == '\\' && str != '\'') {
 			STPUTC('\\', ypp);
-			if ((c = pgetc()) == PEOF)
+			if ((c = readchar()) == PEOF)
 				break;
 		}
 
@@ -308,18 +309,18 @@ void setprompt(int which)
 	}
 }
 
-
 /*
- * consumes a comment
- * leave newline behind as separator
+ * Clear out the rest of the line
+ * useful for exceptions and comments
+ * leaves newline as a separator
  */
-static void comment(void)
+void consumeline(int consumenl)
 {
-	int c;
+  int c;
 
-	while ((c = pgetc()) != PEOF && c != '\n')
-		;
+  while ((c = readchar()) != PEOF && c != '\n')
+      ;
 
-	if (c == '\n')
-		pungetc();
+  if (!consumenl && c == '\n')
+    pungetc();
 }

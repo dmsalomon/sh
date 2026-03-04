@@ -2,6 +2,8 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include <stdio.h>
+
 enum {
 	INPUT_PUSH_FILE = 1,
 	INPUT_NOFILE_OK = 2,
@@ -16,11 +18,13 @@ struct parsefile {
 	char *buf;
 	int lastc[2];
 	int unget;
+  char *fname;
 };
 
 extern struct parsefile *parsefile;
 
 #define plineno (parsefile->lineno)
+#define pfname  (parsefile->fname)
 
 int pgetc(void);
 void pungetc(void);

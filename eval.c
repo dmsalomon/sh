@@ -5,7 +5,6 @@
 
 #include <errno.h>
 #include <setjmp.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -26,7 +25,7 @@
 #include "var.h"
 
 int exitstatus;
-int forked;
+int forked = 0;
 
 static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
@@ -243,6 +242,7 @@ static int evalpipe(struct cmd *c)
 			/* lhs */
 			close(pip[0]);
 			dup2(pip[1], 1);
+      // this exit status won't be used
 			eval(cmd->left);
 			close(pip[1]);
 			close(1);

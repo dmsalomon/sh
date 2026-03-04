@@ -23,6 +23,7 @@ struct parsefile basepf = {
 	.buf = basebuf,
 	.nextc = basebuf,
 	.unget = 0,
+  .fname = "dmsh",
 };
 struct parsefile *parsefile = &basepf;
 int whichprompt;
@@ -143,6 +144,7 @@ int setinputfile(const char *fname, int flags)
 	if (fd < 10)
 		fd = savefd(fd);
 	setinputfd(fd, flags & INPUT_PUSH_FILE);
+  parsefile->fname = xstrdup(fname);
 out:
 	INTON;
 	return fd;
@@ -191,8 +193,11 @@ void popfile()
 	struct parsefile *pf = parsefile;
 
 	INTOFF;
-	if (pf->fd >= 0)
+	if (pf->fd >= 0) {
 		close(pf->fd);
+    if (pf->fname)
+      free(pf->fname);
+  }
 	if (pf->buf)
 		free(pf->buf);
 	parsefile = pf->prev;

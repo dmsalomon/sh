@@ -3,9 +3,7 @@
  * A simple shell
  */
 
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -71,11 +69,8 @@ int repl(void)
 	struct cmd *cmd;
 	struct stackmark mark;
 
-	pushstackmark(&mark);
-
-	for (; (cmd = parseline()) != CEOF; popstackmark(&mark))
-		if (cmd)
-			status = eval(cmd);
+	for (pushstackmark(&mark); (cmd = parseline()); popstackmark(&mark))
+    status = eval(cmd);
 
 	return status;
 }

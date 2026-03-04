@@ -37,6 +37,7 @@ int read_builtin(struct cexec *);
 #define vps4 (&vps2)[1]
 #define vlineno (&vps4)[1]
 #define vifs (&vlineno)[1]
+#define vppid (&vifs)[1]
 
 #define ps1val (vps1.text + 4)
 #define ps2val (vps2.text + 4)

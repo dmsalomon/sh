@@ -4,8 +4,6 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#define PROGNAME "sh"
-
 #include <stdarg.h>
 
 void vperrorf(const char *fmt, va_list);

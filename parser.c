@@ -1,8 +1,5 @@
 
 #include <ctype.h>
-#include <setjmp.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -41,18 +38,17 @@ static int ionumber(const char *);
 
 struct cmd *parseline(void)
 {
-	struct cmd *c;
-
-	if (yytoken == TEOF) {
-		return CEOF;
-	}
-	setprompt(1);
-	if (nexttoken() == TNL)
-		return NULL;
 	if (yytoken == TEOF)
-		return CEOF;
+    return NULL;
 
-	c = parselist();
+  do {
+    setprompt(1);
+  } while (nexttoken() == TNL);
+
+	if (yytoken == TEOF)
+		return NULL;
+
+	struct cmd *c = parselist();
 
 	if (yytoken != TEOF && yytoken != TNL)
 		unexpected();
@@ -572,19 +568,12 @@ static inline void unexpected()
 	expecting(-1);
 }
 
-static void expecting(int tok)
-{
-	int c;
+static void expecting(int tok) {
+  // also consume the newline as well
+  consumeline(1);
 
-	if (yytoken == TEOF)
-		yytoken = TNL;
-
-	if (yytoken != TNL)
-		while ((c = pgetc()) != PEOF && c != '\n')
-			;
-
-	if (tok > 0)
-		raiseerr("%d: syntax: `%s` unexpected (expecting `%s`)", plineno, yytext, toktxt[tok]);
-	else
-		raiseerr("%d: syntax: `%s` unexpected", plineno, yytext);
+  if (tok > 0)
+    raiseerr("syntax: `%s` unexpected (expecting `%s`)", yytext, toktxt[tok]);
+  else
+    raiseerr("syntax: `%s` unexpected", yytext);
 }

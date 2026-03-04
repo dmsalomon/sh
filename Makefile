@@ -1,5 +1,5 @@
 
-CFLAGS:=-g -Wall
+CFLAGS:=-g -Wall -Wextra
 PROG:=sh
 DIR:=$(notdir $(basename $(CURDIR)))
 TAR:=$(DIR).tar.gz
@@ -23,7 +23,7 @@ clean:
 
 $(TAR): clean
 	cd .. && \
-	tar czf $@ $(DIR) && \
+	tar --exclude-vcs -czf $@ $(DIR) && \
 	mv $@ $(DIR)/.
 
 .PHONY: dist
@@ -31,4 +31,3 @@ dist: $(TAR)
 
 .PHONY: re
 re: clean all
-

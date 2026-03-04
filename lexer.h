@@ -46,6 +46,7 @@ int nexttoken(void);
 int skipspaces(void);
 int checkwd(void);
 void setprompt(int);
+void consumeline(int);
 
 #define CTLSUBST (-125)
 

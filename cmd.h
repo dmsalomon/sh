@@ -18,10 +18,6 @@
 #define CFOR 13
 #define CFUNC 14
 
-extern const char *cmdname[];
-
-#define CEOF ((struct cmd*)cmdname)
-
 struct cmd {
 	int type;
 };
