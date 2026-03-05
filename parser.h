@@ -13,9 +13,6 @@ char *endofname(const char *);
 #define is_name(c)    ((c) == '_' || isalpha((unsigned char)(c)))
 #define is_in_name(c) ((c) == '_' || isalnum((unsigned char)(c)))
 
-static inline int goodname(const char *p)
-{
-	return !*endofname(p);
-}
+static inline int goodname(const char *p) { return !*endofname(p); }
 
 #endif

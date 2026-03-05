@@ -13,51 +13,46 @@ struct jmploc *handler;
 int suppressint;
 volatile sig_atomic_t intpending;
 
-void exraise(int e)
-{
-	if (!handler)
-		abort();
+void exraise(int e) {
+  if (!handler)
+    abort();
 
-	if (forked)
-		_exit(exitstatus);
+  if (forked)
+    _exit(exitstatus);
 
-	INTOFF;
+  INTOFF;
 
-	longjmp(handler->loc, e);
+  longjmp(handler->loc, e);
 }
 
-void onint(void)
-{
-	intpending = 0;
-	sigclearmask();
-	exitstatus = SIGINT + 128;
-	exraise(EXINT);
+void onint(void) {
+  intpending = 0;
+  sigclearmask();
+  exitstatus = SIGINT + 128;
+  exraise(EXINT);
 }
 
-void raiseexc(int e, const char *fmt, ...)
-{
-	va_list ap;
+void raiseexc(int e, const char *fmt, ...) {
+  va_list ap;
 
-	va_start(ap, fmt);
-	vperrorf(fmt, ap);
+  va_start(ap, fmt);
+  vperrorf(fmt, ap);
 
-	exraise(e);
+  exraise(e);
 
-	/* unreachable */
-	va_end(ap);
+  /* unreachable */
+  va_end(ap);
 }
 
-void raiseerr(const char *fmt, ...)
-{
-	va_list ap;
+void raiseerr(const char *fmt, ...) {
+  va_list ap;
 
-	va_start(ap, fmt);
-	vperrorf(fmt, ap);
+  va_start(ap, fmt);
+  vperrorf(fmt, ap);
 
-	exitstatus = 2;
-	exraise(EXERR);
+  exitstatus = 2;
+  exraise(EXERR);
 
-	/* unreachable */
-	va_end(ap);
+  /* unreachable */
+  va_end(ap);
 }
-

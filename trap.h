@@ -5,9 +5,9 @@
 #include <signal.h>
 
 static inline void sigclearmask(void) {
-	sigset_t set;
-	sigemptyset(&set);
-	sigprocmask(SIG_SETMASK, &set, 0);
+  sigset_t set;
+  sigemptyset(&set);
+  sigprocmask(SIG_SETMASK, &set, 0);
 }
 
 void signal_init(void);

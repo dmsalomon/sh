@@ -13,16 +13,16 @@
 
 #define VTABSIZE 39
 
-static char ppid[32] = "PPID=";
-static char linenovar[sizeof("LINENO=")+sizeof(int)*8+2] = "LINENO=";
+static char ppid[32]                                           = "PPID=";
+static char linenovar[sizeof("LINENO=") + sizeof(int) * 8 + 2] = "LINENO=";
 
 struct var varinit[] = {
-	{ 0, VSTSTAT|VTXSTAT,         "PS1=$ ",    0 },
-	{ 0, VSTSTAT|VTXSTAT,         "PS2=> ",    0 },
-	{ 0, VSTSTAT|VTXSTAT,         "PS4=+ ",    0 },
-	{ 0, VSTSTAT|VTXSTAT,         linenovar,   0 },
-	{ 0, VSTSTAT|VTXSTAT,         "IFS= \t\n", 0 },
-	{ 0, VSTSTAT|VTXSTAT|VRDONLY, ppid,        0 },
+    {0, VSTSTAT | VTXSTAT, "PS1=$ ", 0},
+    {0, VSTSTAT | VTXSTAT, "PS2=> ", 0},
+    {0, VSTSTAT | VTXSTAT, "PS4=+ ", 0},
+    {0, VSTSTAT | VTXSTAT, linenovar, 0},
+    {0, VSTSTAT | VTXSTAT, "IFS= \t\n", 0},
+    {0, VSTSTAT | VTXSTAT | VRDONLY, ppid, 0},
 };
 
 static struct var *vartab[VTABSIZE];
@@ -31,255 +31,245 @@ static struct var **hashvar(const char *);
 static struct var **findvar(struct var **, const char *);
 
 #ifdef NO_STRCHRNUL
-static char *strchrnul(const char *s, int c)
-{
-	while (*s && *s != c)
-		s++;
-	return (char *)s;
+static char *strchrnul(const char *s, int c) {
+  while (*s && *s != c)
+    s++;
+  return (char *)s;
 }
 #endif
 
-void initvar(void)
-{
-	extern char **environ;
+void initvar(void) {
+  extern char **environ;
 
-	char **envp, *p;
-	struct var *vp;
-	struct var *end;
-	struct var **vpp;
+  char **envp, *p;
+  struct var *vp;
+  struct var *end;
+  struct var **vpp;
 
-	vp = varinit;
-	end = vp + sizeof(varinit) / sizeof(varinit[0]);
+  vp  = varinit;
+  end = vp + sizeof(varinit) / sizeof(varinit[0]);
 
-	do {
-		vpp = hashvar(vp->text);
-		vp->next = *vpp;
-		*vpp = vp;
-	} while (++vp < end);
+  do {
+    vpp      = hashvar(vp->text);
+    vp->next = *vpp;
+    *vpp     = vp;
+  } while (++vp < end);
 
-	if (!geteuid())
-		vps1.text = "PS1=# ";
+  if (!geteuid())
+    vps1.text = "PS1=# ";
 
-	for (envp = environ; *envp; envp++) {
-		p = endofname(*envp);
-		if (p != *envp && *p == '=') {
-			setvareq(*envp, VEXPORT|VTXSTAT);
-		}
-	}
+  for (envp = environ; *envp; envp++) {
+    p = endofname(*envp);
+    if (p != *envp && *p == '=') {
+      setvareq(*envp, VEXPORT | VTXSTAT);
+    }
+  }
 
-	snprintf(ppid+5, sizeof(ppid)-5, "%ld", (long)getppid());
+  snprintf(ppid + 5, sizeof(ppid) - 5, "%ld", (long)getppid());
 
-	/* set SHELL */
-	static char *shell = "SHELL=dmsh";
-	setvareq(shell, VEXPORT|VTXSTAT);
+  /* set SHELL */
+  static char *shell = "SHELL=dmsh";
+  setvareq(shell, VEXPORT | VTXSTAT);
 
-	/* increment SHLVL */
-	char *shlvl;
-	unsigned int shlvlval;
-	static char shlvlbuf[12] = "SHLVL=";
+  /* increment SHLVL */
+  char *shlvl;
+  unsigned int shlvlval;
+  static char shlvlbuf[12] = "SHLVL=";
 
-	if ((shlvl = lookupvar("SHLVL"))) {
-		shlvlval = atoi(shlvl) + 1;
-	} else {
-		shlvlval = 1;
-	}
-	if (shlvlval > 1023) {
-		perrorf("warning: shell level (%u) too high, resetting to 1", shlvlval);
-		shlvlval = 1;
-	}
-	snprintf(shlvlbuf+6, sizeof(shlvlbuf)-6, "%u", shlvlval);
-	setvareq(shlvlbuf, VEXPORT|VTXSTAT);
+  if ((shlvl = lookupvar("SHLVL"))) {
+    shlvlval = atoi(shlvl) + 1;
+  } else {
+    shlvlval = 1;
+  }
+  if (shlvlval > 1023) {
+    perrorf("warning: shell level (%u) too high, resetting to 1", shlvlval);
+    shlvlval = 1;
+  }
+  snprintf(shlvlbuf + 6, sizeof(shlvlbuf) - 6, "%u", shlvlval);
+  setvareq(shlvlbuf, VEXPORT | VTXSTAT);
 }
 
-char *lookupvar(const char *name)
-{
-	struct var *v;
+char *lookupvar(const char *name) {
+  struct var *v;
 
-	if ((v = *findvar(hashvar(name), name)) && !(v->flags & VUNSET)) {
-		if (v == &vlineno && v->text == linenovar) {
-			snprintf(linenovar+7, sizeof(linenovar)-7, "%d", plineno-1);
-		}
-		return strchrnul(v->text, '=') + 1;
-	}
-	return NULL;
+  if ((v = *findvar(hashvar(name), name)) && !(v->flags & VUNSET)) {
+    if (v == &vlineno && v->text == linenovar) {
+      snprintf(linenovar + 7, sizeof(linenovar) - 7, "%d", plineno - 1);
+    }
+    return strchrnul(v->text, '=') + 1;
+  }
+  return NULL;
 }
 
-struct var *setvar(const char *name, const char *val, int flags)
-{
-	char *p, *q;
-	size_t namelen, vallen;
-	char *nameeq;
-	struct var *vp;
+struct var *setvar(const char *name, const char *val, int flags) {
+  char *p, *q;
+  size_t namelen, vallen;
+  char *nameeq;
+  struct var *vp;
 
-	q = endofname(name);
-	p = strchrnul(q, '=');
-	namelen = p - name;
-	if (namelen == 0 || p != q)
-		raiseerr("%.*s: bad variable name", namelen, name);
+  q       = endofname(name);
+  p       = strchrnul(q, '=');
+  namelen = p - name;
+  if (namelen == 0 || p != q)
+    raiseerr("%.*s: bad variable name", namelen, name);
 
-	vallen = 0;
-	if (val)
-		vallen = strlen(val);
-	else
-		flags |= VUNSET;
+  vallen = 0;
+  if (val)
+    vallen = strlen(val);
+  else
+    flags |= VUNSET;
 
-	INTOFF;
-	p = memcpy(nameeq = xmalloc(namelen+vallen+2), name, namelen);
-	p += namelen;
-	if (val) {
-		*p++ = '=';
-		memcpy(p, val, vallen);
-		p += vallen;
-	}
-	*p = '\0';
-	vp = setvareq(nameeq, flags | VNOSAVE);
-	INTON;
+  INTOFF;
+  p = memcpy(nameeq = xmalloc(namelen + vallen + 2), name, namelen);
+  p += namelen;
+  if (val) {
+    *p++ = '=';
+    memcpy(p, val, vallen);
+    p += vallen;
+  }
+  *p = '\0';
+  vp = setvareq(nameeq, flags | VNOSAVE);
+  INTON;
 
-	return vp;
+  return vp;
 }
 
-struct var *setvareq(char *s, int flags)
-{
-	struct var *vp, **vpp;
+struct var *setvareq(char *s, int flags) {
+  struct var *vp, **vpp;
 
-	vpp = findvar(hashvar(s), s);
-	vp = *vpp;
+  vpp = findvar(hashvar(s), s);
+  vp  = *vpp;
 
-	if (vp) {
-		if (vp->flags & VRDONLY) {
-			const char *n;
+  if (vp) {
+    if (vp->flags & VRDONLY) {
+      const char *n;
 
-			if (flags & VNOSAVE)
-				free(s);
-			n = vp->text;
-			raiseerr("%.*s: is read only", strchrnul(n, '=')-n, n);
-		}
+      if (flags & VNOSAVE)
+        free(s);
+      n = vp->text;
+      raiseerr("%.*s: is read only", strchrnul(n, '=') - n, n);
+    }
 
-		if (flags & VNOSET)
-			goto out;
+    if (flags & VNOSET)
+      goto out;
 
-		if (vp->func && (flags & VNOFUNC) == 0)
-			vp->func(strchrnul(s, '=') + 1);
+    if (vp->func && (flags & VNOFUNC) == 0)
+      vp->func(strchrnul(s, '=') + 1);
 
-		if ((vp->flags & (VTXSTAT|VSTACK)) == 0)
-			free(vp->text);
+    if ((vp->flags & (VTXSTAT | VSTACK)) == 0)
+      free(vp->text);
 
-		if (((flags & (VEXPORT|VRDONLY|VSTSTAT|VUNSET)) |
-			(vp->flags & VSTSTAT)) == VUNSET) {
-			*vpp = vp->next;
-			free(vp);
-out_free:
-			if ((flags & (VTXSTAT|VSTACK|VNOSAVE)) == VNOSAVE)
-				free(s);
-			goto out;
-		}
+    if (((flags & (VEXPORT | VRDONLY | VSTSTAT | VUNSET)) |
+         (vp->flags & VSTSTAT)) == VUNSET) {
+      *vpp = vp->next;
+      free(vp);
+    out_free:
+      if ((flags & (VTXSTAT | VSTACK | VNOSAVE)) == VNOSAVE)
+        free(s);
+      goto out;
+    }
 
-		flags |= vp->flags & ~(VTXSTAT|VSTACK|VNOSAVE|VUNSET);
-	} else {
-		if (flags & VNOSET)
-			goto out;
-		if ((flags & (VEXPORT|VRDONLY|VSTSTAT|VUNSET)) == VUNSET)
-			goto out_free;
-		vp = xmalloc(sizeof(*vp));
-		vp->next = *vpp;
-		vp->func = NULL;
-		*vpp = vp;
-	}
-	if (!(flags & (VTXSTAT|VSTACK|VNOSAVE)))
-		s = xstrdup(s);
-	vp->text = s;
-	vp->flags = flags;
-	if (flags & VEXPORT)
-		putenv(s);
+    flags |= vp->flags & ~(VTXSTAT | VSTACK | VNOSAVE | VUNSET);
+  } else {
+    if (flags & VNOSET)
+      goto out;
+    if ((flags & (VEXPORT | VRDONLY | VSTSTAT | VUNSET)) == VUNSET)
+      goto out_free;
+    vp       = xmalloc(sizeof(*vp));
+    vp->next = *vpp;
+    vp->func = NULL;
+    *vpp     = vp;
+  }
+  if (!(flags & (VTXSTAT | VSTACK | VNOSAVE)))
+    s = xstrdup(s);
+  vp->text  = s;
+  vp->flags = flags;
+  if (flags & VEXPORT)
+    putenv(s);
 out:
-	return vp;
+  return vp;
 }
 
-int export_builtin(struct cexec *cmd)
-{
-	/* lets not bother listing the variables
-	 * forget POSIX, at least for now */
+int export_builtin(struct cexec *cmd) {
+  /* lets not bother listing the variables
+   * forget POSIX, at least for now */
 
-	int flag = cmd->argv[0][0] == 'r' ? VRDONLY : VEXPORT;
-	char *ap, **app, *p;
-	struct var *vp;
+  int flag = cmd->argv[0][0] == 'r' ? VRDONLY : VEXPORT;
+  char *ap, **app, *p;
+  struct var *vp;
 
-	for (app = &cmd->argv[1]; (ap = *app); app++) {
-		if ((p = strchr(ap, '=')) != NULL) {
-			p++;
-		} else {
-			if ((vp = *findvar(hashvar(ap), ap))) {
-				vp->flags |= flag;
-				if (flag == VEXPORT)
-					putenv(vp->text);
-				continue;
-			}
-		}
-		setvar(ap, p, flag);
-	}
+  for (app = &cmd->argv[1]; (ap = *app); app++) {
+    if ((p = strchr(ap, '=')) != NULL) {
+      p++;
+    } else {
+      if ((vp = *findvar(hashvar(ap), ap))) {
+        vp->flags |= flag;
+        if (flag == VEXPORT)
+          putenv(vp->text);
+        continue;
+      }
+    }
+    setvar(ap, p, flag);
+  }
 
-	return 0;
+  return 0;
 }
 
-int read_builtin(struct cexec *cmd)
-{
-	int n;
-	char c, *line;
+int read_builtin(struct cexec *cmd) {
+  int n;
+  char c, *line;
 
-	if (cmd->argc < 2) {
-		perrorf("read: arg count");
-		return 2;
-	}
+  if (cmd->argc < 2) {
+    perrorf("read: arg count");
+    return 2;
+  }
 
-	STARTSTACKSTR(line);
-	while ((n = read(0, &c, 1)) > 0 && c != '\n')
-		STPUTC(c, line);
-	if (n < 1)
-		return 1;
-	STACKSTRNUL(line);
+  STARTSTACKSTR(line);
+  while ((n = read(0, &c, 1)) > 0 && c != '\n')
+    STPUTC(c, line);
+  if (n < 1)
+    return 1;
+  STACKSTRNUL(line);
 
-	if (*endofname(cmd->argv[1])) {
-		perrorf("read: %s: bad variable name", cmd->argv[1]);
-		return 1;
-	}
+  if (*endofname(cmd->argv[1])) {
+    perrorf("read: %s: bad variable name", cmd->argv[1]);
+    return 1;
+  }
 
-	setvar(cmd->argv[1], stacknext, 0);
+  setvar(cmd->argv[1], stacknext, 0);
 
-	return 0;
+  return 0;
 }
 
-static struct var **hashvar(const char *p)
-{
-	unsigned int hashval;
+static struct var **hashvar(const char *p) {
+  unsigned int hashval;
 
-	hashval = ((unsigned char) *p) << 4;
-	while (*p && *p != '=')
-		hashval += (unsigned char) *p++;
-	return &vartab[hashval % VTABSIZE];
+  hashval = ((unsigned char)*p) << 4;
+  while (*p && *p != '=')
+    hashval += (unsigned char)*p++;
+  return &vartab[hashval % VTABSIZE];
 }
 
-int varcmp(const char *p, const char *q)
-{
-	int c, d;
+int varcmp(const char *p, const char *q) {
+  int c, d;
 
-	while ((c = *p) == (d = *q)) {
-		if (!c ||c == '=')
-			goto out;
-		p++, q++;
-	}
-	if (c == '=')
-		c = 0;
-	if (d == '=')
-		d = 0;
+  while ((c = *p) == (d = *q)) {
+    if (!c || c == '=')
+      goto out;
+    p++, q++;
+  }
+  if (c == '=')
+    c = 0;
+  if (d == '=')
+    d = 0;
 out:
-	return c - d;
+  return c - d;
 }
 
-static struct var **findvar(struct var **vpp, const char *name)
-{
-	for (; *vpp; vpp = &(*vpp)->next)
-		if (varequal((*vpp)->text, name))
-			break;
+static struct var **findvar(struct var **vpp, const char *name) {
+  for (; *vpp; vpp = &(*vpp)->next)
+    if (varequal((*vpp)->text, name))
+      break;
 
-	return vpp;
+  return vpp;
 }

@@ -5,19 +5,19 @@
 #include <stdio.h>
 
 enum {
-	INPUT_PUSH_FILE = 1,
-	INPUT_NOFILE_OK = 2,
+  INPUT_PUSH_FILE = 1,
+  INPUT_NOFILE_OK = 2,
 };
 
 struct parsefile {
-	struct parsefile *prev;
-	int lineno;
-	int fd;
-	int nleft;
-	char *nextc;
-	char *buf;
-	int lastc[2];
-	int unget;
+  struct parsefile *prev;
+  int lineno;
+  int fd;
+  int nleft;
+  char *nextc;
+  char *buf;
+  int lastc[2];
+  int unget;
   char *fname;
 };
 
@@ -37,10 +37,9 @@ void closescript(void);
 
 #define PEOF (-1)
 
-static inline void newline(void)
-{
-	if (++plineno == 0)
-		fprintf(stderr, "wtf newline\n");
+static inline void newline(void) {
+  if (++plineno == 0)
+    fprintf(stderr, "wtf newline\n");
 }
 
 #endif

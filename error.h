@@ -6,7 +6,7 @@
 #include <signal.h>
 
 struct jmploc {
-	jmp_buf loc;
+  jmp_buf loc;
 };
 
 extern struct jmploc *handler;
@@ -19,26 +19,28 @@ extern volatile sig_atomic_t intpending;
 #define EXINT 1
 #define EXERR 2
 
-#define barrier() ({ __asm__ __volatile__ ("": : :"memory"); })
-#define INTOFF \
-	({ \
-		suppressint++; \
-		barrier(); \
-		0; \
-	})
-#define INTON \
-	({ \
-		barrier(); \
-		if (--suppressint == 0 && intpending) onint(); \
-		0; \
-	})
-#define FORCEINTON \
-	({ \
-		barrier(); \
-		suppressint = 0; \
-		if (intpending) onint(); \
-		0; \
-	})
+#define barrier() ({ __asm__ __volatile__("" : : : "memory"); })
+#define INTOFF                                                                 \
+  ({                                                                           \
+    suppressint++;                                                             \
+    barrier();                                                                 \
+    0;                                                                         \
+  })
+#define INTON                                                                  \
+  ({                                                                           \
+    barrier();                                                                 \
+    if (--suppressint == 0 && intpending)                                      \
+      onint();                                                                 \
+    0;                                                                         \
+  })
+#define FORCEINTON                                                             \
+  ({                                                                           \
+    barrier();                                                                 \
+    suppressint = 0;                                                           \
+    if (intpending)                                                            \
+      onint();                                                                 \
+    0;                                                                         \
+  })
 
 void exraise(int) __attribute__((noreturn));
 void onint(void) __attribute__((noreturn));
