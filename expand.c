@@ -1,6 +1,8 @@
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -8,8 +10,10 @@
 #include "error.h"
 #include "eval.h"
 #include "expand.h"
+#include "input.h"
 #include "lexer.h"
 #include "mem.h"
+#include "output.h"
 #include "parser.h"
 #include "sh.h"
 #include "var.h"
@@ -73,10 +77,16 @@ static struct arg *expandarg(struct arg *arg) {
       if (c != '\n')
         cappend(c);
     } else if (c == '$' && quote != '\'') {
-      c = *++s;
-      if (c && strchr("$?", c))
+      if ((c = *++s) == '{') {
+        p = ++s;
+        while ((c = *p) != '}')
+          p++;
+        // now we are at the end of the thing
+        if (c != '}')
+          die("how did this happen, unused");
+      } else if (c && strchr("$?0123456789", c)) {
         p = s + 1;
-      else if ((p = endofname(s)) == s) {
+      } else if ((p = endofname(s)) == s) {
         cappend('$');
         continue;
       }
@@ -85,6 +95,8 @@ static struct arg *expandarg(struct arg *arg) {
       varvalue(s);
       *p = c;
       s += (p - s - 1);
+      if (c == '}')
+        s++;
     } else if (c == CTLSUBST) {
       assert(subst);
       procvalue(subst->left);
@@ -149,10 +161,12 @@ static void procvalue(struct cmd *cmd) {
 }
 
 static void varvalue(const char *name) {
-  int num;
+  int i, num;
   char *p;
 
   switch (*name) {
+  case '\0':
+    raiseerr("bad substitution: no var");
   case '$':
     num = rootpid;
     goto num;
@@ -162,8 +176,32 @@ static void varvalue(const char *name) {
   num:
     numappend(num);
     break;
+  case '0':
+  case '1':
+  case '2':
+  case '3':
+  case '4':
+  case '5':
+  case '6':
+  case '7':
+  case '8':
+  case '9':
+    DEBUGF("decoding $%s", name);
+    for (const char *s = name; *s; s++)
+      if (!isdigit(*s))
+        raiseerr("bad substitution: not a number");
+    i = atoi(name);
+    if (i < 0 || i > shparam.argc)
+      break;
+    p = i ? shparam.argv[i] : pfname;
+    goto value;
   default:
+    // check that the varname is valid
+    for (const char *s = name; *s; s++)
+      if (!isalnum(*s) && !strchr("_", *s))
+        raiseerr("bad substitution: bad var");
     p = lookupvar(name);
+  value:
     if (p)
       expappend(p);
     break;

@@ -1,0 +1,5 @@
+- aliases
+- variable substitution extensions
+  - parameterize expansion using a struct instead of globals
+- sourcing /etc/profile and .profile
+- implement case statement

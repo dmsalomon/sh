@@ -15,6 +15,7 @@
 #include "error.h"
 #include "eval.h"
 #include "expand.h"
+#include "func.h"
 #include "input.h"
 #include "mem.h"
 #include "output.h"
@@ -27,11 +28,21 @@
 int exitstatus;
 int forked = 0;
 
+static struct jmploc *funcret = NULL;
+struct shparam shparam        = {0};
+
 static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
+static int evalfunc(struct cfunc *, struct cexec *);
+static int evalcond(struct cmd *);
 
 struct cfunc *last;
+
+static struct looploc {
+  struct looploc *next;
+  jmp_buf loc;
+} *loops;
 
 int eval(struct cmd *c) {
   pid_t pid;
@@ -98,7 +109,7 @@ int eval(struct cmd *c) {
   case CIF:
     ci = (struct cif *)c;
 
-    if (!eval(ci->cond))
+    if (!evalcond(ci->cond))
       exitstatus = eval(ci->ifpart);
     else if (ci->elsepart)
       exitstatus = eval(ci->elsepart);
@@ -128,12 +139,7 @@ int eval(struct cmd *c) {
 
   case CFUNC:
     cf = (struct cfunc *)c;
-    if (last) {
-      perrorf("evaluating function `%s`", last->name);
-      exitstatus = eval(last->body);
-      freecmd((struct cmd *)last);
-    }
-    last = (struct cfunc *)copycmd((struct cmd *)cf);
+    defunc(cf);
     break;
 
   default:
@@ -177,12 +183,67 @@ int evalcmd(struct cexec *cmd) {
   cmd->argv = argv;
   cmd->argc = argc;
 
-  builtin_func bt = get_builtin(cmd->argv[0]);
+  struct funcentry *fp = lookupfunc(cmd->argv[0], 0);
+  if (fp)
+    return evalfunc(fp->func, cmd);
 
+  builtin_func bt = get_builtin(cmd->argv[0]);
   if (bt)
     return (*bt)(cmd);
-  else
-    return runprog(cmd);
+
+  return runprog(cmd);
+}
+
+static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
+  int status;
+  struct stackmark mark;
+  struct shparam saveparam = shparam;
+
+  shparam.mallocd = 0;
+  shparam.argc    = cmd->argc;
+  shparam.argv    = cmd->argv;
+
+  struct jmploc *savefuncret = funcret;
+  struct looploc *saveloops  = loops;
+  loops                      = NULL;
+
+  struct jmploc here;
+  funcret = &here;
+  if ((status = setjmp(here.loc))) {
+    popstackmark(&mark);
+    if (status < 0)
+      status = 0;
+    goto out;
+  }
+  pushstackmark(&mark);
+
+  DEBUGF("running func %s", cf->name);
+  status = eval(cf->body);
+out:
+  shparam = saveparam;
+  loops   = saveloops;
+  funcret = savefuncret;
+  return status;
+}
+
+void unwindrets() { funcret = NULL; }
+
+int return_builtin(struct cexec *cmd) {
+  int status = cmd->argc > 1 ? atoi(cmd->argv[1]) : 0;
+
+  if (status <= 0)
+    raiseerr("return: illegal number: %s", cmd->argv[1]);
+
+  if (!funcret)
+    _exit(status);
+
+  longjmp(funcret->loc, status);
+}
+
+static int evalcond(struct cmd *c) {
+  int status = eval(c);
+  exitstatus = 0;
+  return status;
 }
 
 int evalstring(char *s) {
@@ -190,10 +251,37 @@ int evalstring(char *s) {
 
   s = sstrdup(s);
   setinputstring(s, INPUT_PUSH_FILE);
-  status = repl();
+  status = repl(0);
   popfile();
   stfree(s);
 
+  return status;
+}
+
+int source_builtin(struct cexec *cmd) {
+  int status;
+
+  if (cmd->argc < 2) {
+    perrorf("%s: not enough arguments", cmd->argv[0]);
+    return 1;
+  }
+
+  struct jmploc *saveret    = funcret;
+  struct looploc *saveloops = loops;
+
+  struct jmploc here;
+  funcret = &here;
+  if ((status = setjmp(here.loc))) {
+    if (status < 0)
+      status = 0;
+    goto out;
+  }
+  setinputfile(cmd->argv[1], INPUT_PUSH_FILE);
+  status = repl(0);
+out:
+  popfile();
+  funcret = saveret;
+  loops   = saveloops;
   return status;
 }
 
@@ -206,7 +294,8 @@ int eval_builtin(struct cexec *cmd) {
 
   if (cmd->argc < 2) {
     return 0;
-  } else if (cmd->argc == 2) {
+  }
+  if (cmd->argc == 2) {
     p = cmd->argv[1];
   } else {
     STARTSTACKSTR(concat);
@@ -255,10 +344,7 @@ static int evalpipe(struct cmd *c) {
   return waitsh(pr);
 }
 
-static struct looploc {
-  struct looploc *next;
-  jmp_buf loc;
-} *loops;
+void unwindloops(void) { loops = NULL; }
 
 static int poploop(int lvl, int type) {
   struct looploc *jmppnt;
@@ -275,8 +361,6 @@ static int poploop(int lvl, int type) {
   exitstatus = 0;
   longjmp(jmppnt->loc, type);
 }
-
-void unwindloops(void) { loops = NULL; }
 
 static int evalloop(struct cmd *c) {
   int mod, type;
@@ -297,7 +381,7 @@ static int evalloop(struct cmd *c) {
 
   pushstackmark(&mark);
 
-  while (eval(cmd->cond) ^ mod) {
+  while (evalcond(cmd->cond) ^ mod) {
     exitstatus = eval(cmd->body);
     popstackmark(&mark);
   }
@@ -386,7 +470,7 @@ int runprog(struct cexec *cmd) {
     /* child */
     execvp(cmd->argv[0], cmd->argv);
     /* if error */
-    sdie(127, "%s: command not found", cmd->argv[0]);
+    sdie(127, "%s:", cmd->argv[0]);
   }
 
   /* parent */

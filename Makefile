@@ -1,5 +1,5 @@
 
-CFLAGS:=-g -Wall -Wextra
+CFLAGS:=-Wall -Wextra
 PROG:=sh
 DIR:=$(notdir $(basename $(CURDIR)))
 TAR:=$(DIR).tar.gz
@@ -19,7 +19,7 @@ $(PROG): $(OBJ)
 
 .PHONY: clean
 clean:
-	$(RM) *.d *.o $(PROG) $(TAR)
+	$(RM) *.d *.o $(PROG) $(TAR) compile_commands.json
 
 $(TAR): clean
 	cd .. && \
@@ -31,3 +31,7 @@ dist: $(TAR)
 
 .PHONY: re
 re: clean all
+
+debug: CFLAGS += -ggdb -DDEBUG
+
+debug: all

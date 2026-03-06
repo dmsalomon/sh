@@ -23,7 +23,7 @@
 int rootpid;
 
 int main(int argc, char **argv) {
-  int fd, exception;
+  int fd, exception, status;
   struct stackmark mark;
   struct jmploc jmploc;
 
@@ -45,44 +45,32 @@ int main(int argc, char **argv) {
     /* reset the shell */
     unwindredir();
     unwindloops();
+    unwindrets();
     closescript();
     yytoken = TNL;
     popstackmark(&mark);
     if (exception == EXINT)
       fputc('\n', stderr);
+    status = exitstatus;
   } else {
     pushstackmark(&mark);
     rootpid = getpid();
     initvar();
     signal_init();
+    status = 0;
   }
   handler = &jmploc;
   FORCEINTON;
 
-  return repl();
+  return repl(status);
 }
 
-int repl(void) {
-  int status = 0;
+int repl(int status) {
   struct cmd *cmd;
   struct stackmark mark;
 
   for (pushstackmark(&mark); (cmd = parseline()); popstackmark(&mark))
     status = eval(cmd);
 
-  return status;
-}
-
-int source_builtin(struct cexec *cmd) {
-  int status;
-
-  if (cmd->argc < 2) {
-    perrorf("%s: not enough arguments", cmd->argv[0]);
-    return 1;
-  }
-
-  setinputfile(cmd->argv[1], INPUT_PUSH_FILE);
-  status = repl();
-  popfile();
   return status;
 }

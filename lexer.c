@@ -1,11 +1,13 @@
 
 #include <alloca.h>
 #include <ctype.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "cmd.h"
+#include "error.h"
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
@@ -162,19 +164,20 @@ int checkwd(void) {
  * grab a WORD
  */
 static int word(void) {
-  int c, str, savelen;
+  int c, savelen;
   char *ypp, *saveword;
 
   struct cbinary *cbase, **cpp;
   struct cunary *cu;
 
-  str = 0;
+  int str = 0;
+  int brace = 0;
   cpp = &cbase;
 
   STARTSTACKSTR(ypp);
 
   while ((c = readchar()) != PEOF) {
-    if (!str && strchr(" ()<>&\n\t\r\v;|", c)) {
+    if (!str && !brace && strchr(" ()<>&\n\t\r\v;|", c)) {
       pungetc();
       break;
     }
@@ -183,8 +186,7 @@ static int word(void) {
       if ((c = readchar()) == PEOF) {
         STPUTC('$', ypp);
         break;
-      }
-      if (c == '(') {
+      } else if (c == '(') {
         /* save the stack string */
         savelen = ypp - stacknext;
         if (savelen > 0) {
@@ -206,13 +208,18 @@ static int word(void) {
         }
         c = CTLSUBST;
       } else {
+        if (c == '{')
+          brace = '}';
         STPUTC('$', ypp);
       }
     }
 
     /* string delimiter */
     if (c == '\'' || c == '"')
-      str = str == c ? '\0' : (str ? str : c);
+      str = str == c ? 0 : (str ? str : c);
+
+    if (brace && c == brace)
+      brace = 0;
 
     if (c == '\\' && str != '\'') {
       STPUTC('\\', ypp);
@@ -227,7 +234,8 @@ static int word(void) {
   }
 
   if (c == PEOF && str) {
-    return TEOF;
+    raiseerr("syntax: missing `%c`", str);
+    /* not reached */
   }
 
   STPUTC('\0', ypp);
