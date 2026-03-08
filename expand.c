@@ -13,6 +13,7 @@
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
+#include "options.h"
 #include "output.h"
 #include "parser.h"
 #include "sh.h"
@@ -84,7 +85,7 @@ static struct arg *expandarg(struct arg *arg) {
         // now we are at the end of the thing
         if (c != '}')
           die("how did this happen, unused");
-      } else if (c && strchr("$?0123456789", c)) {
+      } else if (c && strchr("$?@*#0123456789", c)) {
         p = s + 1;
       } else if ((p = endofname(s)) == s) {
         cappend('$');
@@ -150,7 +151,7 @@ static void procvalue(struct cmd *cmd) {
     lastc = buf[n - 1];
   }
   close(pip[0]);
-  waitsh(pid);
+  exitstatus = waitsh(pid);
   INTON;
 
   if ((quote || filename) && expdest && lastc == '\n' &&
@@ -173,8 +174,27 @@ static void varvalue(const char *name) {
   case '?':
     num = exitstatus;
     goto num;
+  case '#':
+    num = shparam.argc;
+    goto num;
   num:
     numappend(num);
+    break;
+  case '*':
+    for (i = 0; i < shparam.argc; i++) {
+      expappend(shparam.argv[i]);
+      if (quote && i+1 < shparam.argc)
+        cappend(IFS[0] ? IFS[0] : ' ');
+      else if (shparam.argv[i][0] != '\0')
+        cappend('\0');
+    }
+    break;
+  case '@':
+    for (i = 0; i < shparam.argc; i++) {
+      expappend(shparam.argv[i]);
+      if (quote || shparam.argv[i][0] != '\0')
+        cappend('\0');
+    }
     break;
   case '0':
   case '1':
@@ -193,7 +213,7 @@ static void varvalue(const char *name) {
     i = atoi(name);
     if (i < 0 || i > shparam.argc)
       break;
-    p = i ? shparam.argv[i] : pfname;
+    p = i ? shparam.argv[i-1] : pfname;
     goto value;
   default:
     // check that the varname is valid
@@ -201,6 +221,7 @@ static void varvalue(const char *name) {
       if (!isalnum(*s) && !strchr("_", *s))
         raiseerr("bad substitution: bad var");
     p = lookupvar(name);
+    /* fallthrough */
   value:
     if (p)
       expappend(p);

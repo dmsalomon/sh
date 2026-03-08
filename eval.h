@@ -7,12 +7,6 @@
 #include "cmd.h"
 #include <sys/types.h>
 
-struct shparam {
-  int mallocd;
-  int argc;
-  char **argv;
-};
-
 extern int forked;
 extern int exitstatus;
 extern struct shparam shparam;

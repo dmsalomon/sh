@@ -12,7 +12,7 @@ void sdie(int status, const char *fmt, ...) __attribute__((noreturn));
 void flushall(void);
 
 #ifdef DEBUG
-#define DEBUGF(fmt, ...) perrorf("DEBUG: " fmt, __VA_ARGS__)
+#define DEBUGF(fmt, ...) perrorf("DEBUG: " fmt, ##__VA_ARGS__)
 #else
 #define DEBUGF(fmt, ...)
 #endif

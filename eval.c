@@ -18,6 +18,7 @@
 #include "func.h"
 #include "input.h"
 #include "mem.h"
+#include "options.h"
 #include "output.h"
 #include "parser.h"
 #include "redir.h"
@@ -29,7 +30,6 @@ int exitstatus;
 int forked = 0;
 
 static struct jmploc *funcret = NULL;
-struct shparam shparam        = {0};
 
 static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
@@ -83,7 +83,7 @@ int eval(struct cmd *c) {
   case COR:
     cb = (struct cbinary *)c;
 
-    if (eval(cb->left) ^ (cb->type == CAND))
+    if ((exitstatus = eval(cb->left)) ^ (cb->type == CAND))
       exitstatus = eval(cb->right);
     break;
 
@@ -140,10 +140,11 @@ int eval(struct cmd *c) {
   case CFUNC:
     cf = (struct cfunc *)c;
     defunc(cf);
+    exitstatus = 0;
     break;
 
   default:
-    perrorf("%d: not implemented", c->type);
+    raiseerr("%d: not implemented", c->type);
   }
 
   return exitstatus;
@@ -173,8 +174,10 @@ int evalcmd(struct cexec *cmd) {
     argc++;
   }
 
-  if (argc == 0)
-    return 0;
+  if (argc == 0) {
+    DEBUGF("no cmd!");
+    return exitstatus;
+  }
 
   argv = stalloc(sizeof(*argv) * (argc + 1));
   for (i = 0, ap = expargs; i < argc; i++, ap = ap->next)
@@ -200,8 +203,8 @@ static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
   struct shparam saveparam = shparam;
 
   shparam.mallocd = 0;
-  shparam.argc    = cmd->argc;
-  shparam.argv    = cmd->argv;
+  shparam.argc    = cmd->argc - 1;
+  shparam.argv    = cmd->argv + 1;
 
   struct jmploc *savefuncret = funcret;
   struct looploc *saveloops  = loops;
