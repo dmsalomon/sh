@@ -36,6 +36,7 @@
 
 #include "cmd.h"
 
+extern int show_tokens;
 extern int yytoken;
 extern char *yytext;
 extern struct cbinary *subst;

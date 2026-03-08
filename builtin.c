@@ -10,28 +10,25 @@
 #include "builtin.h"
 #include "cmd.h"
 #include "eval.h"
+#include "lexer.h"
+#include "options.h"
 #include "output.h"
-#include "sh.h"
 #include "var.h"
 
 #define LEN(a)     (sizeof(a) / sizeof(a[0]))
 #define N_BUILTINS LEN(builtins)
 
-static int cd_builtin(struct cexec *);
-static int echo_builtin(struct cexec *);
-static int exit_builtin(struct cexec *);
-static int exec_builtin(struct cexec *);
-static int fg_builtin(struct cexec *);
-static int true_builtin(struct cexec *);
 static int args_builtin(struct cexec *);
 static int builtin_builtin(struct cexec *);
+static int cd_builtin(struct cexec *);
 static int command_builtin(struct cexec *);
+static int echo_builtin(struct cexec *);
+static int exec_builtin(struct cexec *);
+static int exit_builtin(struct cexec *);
+static int fg_builtin(struct cexec *);
+static int tokens_builtin(struct cexec *);
+static int true_builtin(struct cexec *);
 
-/*
- * A struct to hold the builtin
- * names with their corresponding
- * functions
- */
 static struct builtin {
   char *name;
   builtin_func f;
@@ -46,7 +43,8 @@ builtins[] = {
     {"exit", exit_builtin},      {"export", export_builtin},
     {"false", true_builtin},     {"fg", fg_builtin},
     {"read", read_builtin},      {"readonly", export_builtin},
-    {"return", return_builtin},  {"source", source_builtin},
+    {"return", return_builtin},  {"set", set_builtin},
+    {"source", source_builtin},  {"tokens", tokens_builtin},
     {"true", true_builtin},
 };
 
@@ -201,4 +199,10 @@ static int command_builtin(struct cexec *cmd) {
     return 0;
 
   return runprog(cmd);
+}
+
+static int tokens_builtin(struct cexec *cmd) {
+  (void)cmd;
+  show_tokens = !show_tokens;
+  return 0;
 }

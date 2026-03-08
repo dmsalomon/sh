@@ -1,7 +1,6 @@
 
 #include <alloca.h>
 #include <ctype.h>
-#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -14,7 +13,8 @@
 #include "parser.h"
 #include "var.h"
 
-int yytoken = TNL;
+int show_tokens = 0;
+int yytoken    = TNL;
 char *yytext;
 struct cbinary *subst;
 
@@ -104,7 +104,7 @@ repeat:
   if (yytoken != TWORD)
     yytext = sstrdup(toktxt[yytoken]);
 
-  if (0) {
+  if (show_tokens) {
     printf("nexttoken(): %s `%s`", tokname[yytoken], yytext);
     if (yytoken == TWORD)
       printf(" size: %ld", strlen(yytext));
@@ -164,15 +164,15 @@ int checkwd(void) {
  * grab a WORD
  */
 static int word(void) {
-  int c, savelen;
+  int c;
   char *ypp, *saveword;
 
   struct cbinary *cbase, **cpp;
   struct cunary *cu;
 
-  int str = 0;
+  int str   = 0;
   int brace = 0;
-  cpp = &cbase;
+  cpp       = &cbase;
 
   STARTSTACKSTR(ypp);
 
@@ -183,12 +183,9 @@ static int word(void) {
     }
 
     if (c == '$' && str != '\'') {
-      if ((c = readchar()) == PEOF) {
-        STPUTC('$', ypp);
-        break;
-      } else if (c == '(') {
+      if ((c = readchar()) == '(') {
         /* save the stack string */
-        savelen = ypp - stacknext;
+        int savelen = ypp - stacknext;
         if (savelen > 0) {
           saveword = alloca(savelen);
           memcpy(saveword, stacknext, savelen);

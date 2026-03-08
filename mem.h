@@ -29,6 +29,7 @@ extern char *sstrend;
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
+
 void *stalloc(size_t);
 void stfree(void *);
 

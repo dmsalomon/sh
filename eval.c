@@ -223,6 +223,7 @@ static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
   DEBUGF("running func %s", cf->name);
   status = eval(cf->body);
 out:
+  free_shparam();
   shparam = saveparam;
   loops   = saveloops;
   funcret = savefuncret;
