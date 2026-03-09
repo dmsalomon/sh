@@ -15,12 +15,12 @@ extern char *minusc;
 
 #define sflag optlist[0]
 #define xflag optlist[1]
+#define vflag optlist[2]
 
-#define NOPTS 2
+#define NOPTS 3
 
 extern const char optletters[NOPTS];
 extern char optlist[NOPTS];
-
 
 int procargs(int, char **);
 void freeparam(struct shparam *);

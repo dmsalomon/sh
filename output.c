@@ -10,8 +10,8 @@
 #include <unistd.h>
 
 #include "input.h"
-#include "output.h"
 #include "options.h"
+#include "output.h"
 
 /*
  * Like perror but with formatting

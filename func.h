@@ -6,7 +6,7 @@
 
 struct funcentry {
   struct cfunc *func;
-	struct funcentry *next;
+  struct funcentry *next;
 };
 
 struct funcentry *lookupfunc(const char *, int);

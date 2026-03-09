@@ -23,7 +23,7 @@ int rootpid;
 
 int main(int argc, char **argv) {
   volatile int state = 0;
-  int exception, status;
+  int exception;
   struct stackmark mark;
   struct jmploc jmploc;
 
@@ -39,7 +39,6 @@ int main(int argc, char **argv) {
     popstackmark(&mark);
     if (exception == EXINT)
       fputc('\n', stderr);
-    status = exitstatus;
     switch (state) {
     case 0:
       goto exit;
@@ -54,7 +53,6 @@ int main(int argc, char **argv) {
     rootpid = getpid();
     initvar();
     signal_init();
-    status = 0;
   }
   parsefile->isatty = isatty(parsefile->fd);
   handler           = &jmploc;

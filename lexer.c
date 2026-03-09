@@ -14,7 +14,7 @@
 #include "var.h"
 
 int show_tokens = 0;
-int yytoken    = TNL;
+int yytoken     = TNL;
 char *yytext;
 struct cbinary *subst;
 

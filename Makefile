@@ -1,5 +1,5 @@
 
-CFLAGS:=-Wall -Wextra
+CFLAGS:=-Wall -Wextra -ggdb
 PROG:=sh
 DIR:=$(notdir $(basename $(CURDIR)))
 TAR:=$(DIR).tar.gz
@@ -35,3 +35,7 @@ re: clean all
 debug: CFLAGS += -ggdb -DDEBUG
 
 debug: all
+
+.PHONY: run
+run: all
+	rlwrap -cpPurple ./sh

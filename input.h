@@ -14,6 +14,7 @@ struct parsefile {
   int lineno;
   int fd;
   int nleft;
+  int lleft;
   char *nextc;
   char *buf;
   int lastc[2];

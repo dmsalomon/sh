@@ -8,8 +8,8 @@
 
 #include "cmd.h"
 #include "func.h"
-#include "output.h"
 #include "mem.h"
+#include "output.h"
 
 #define FUNCTABSIZE 11
 static struct funcentry *functab[FUNCTABSIZE];
@@ -45,10 +45,10 @@ void defunc(struct cfunc *cf) {
   }
   if (fp->func) {
     DEBUGF("%s already defined", cf->name);
-    freecmd((struct cmd*)fp->func);
-    fp->func = (struct cfunc*)copycmd((struct cmd*)cf);
+    freecmd((struct cmd *)fp->func);
+    fp->func = (struct cfunc *)copycmd((struct cmd *)cf);
   } else {
     DEBUGF("defining %s", cf->name);
-    fp->func = (struct cfunc*)copycmd((struct cmd*)cf);
+    fp->func = (struct cfunc *)copycmd((struct cmd *)cf);
   }
 }

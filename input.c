@@ -11,6 +11,7 @@
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
+#include "options.h"
 #include "output.h"
 #include "redir.h"
 
@@ -20,6 +21,7 @@ struct parsefile basepf = {
     .lineno = 1,
     .fd     = 0,
     .nleft  = 0,
+    .lleft  = 0,
     .buf    = basebuf,
     .nextc  = basebuf,
     .unget  = 0,
@@ -83,9 +85,9 @@ retry:
 
 static int preadbuffer() {
   char *q;
-  int n, more;
+  int more;
 
-  more = parsefile->nleft;
+  more = parsefile->lleft;
   if (more <= 0) {
   again:
     if ((more = preadfd()) <= 0) {
@@ -94,9 +96,12 @@ static int preadbuffer() {
     }
   }
 
-  n = more;
   q = parsefile->nextc;
 
+  /* Parse the input buffer removing any nul chars. Ensure that that a \n or
+   * EOF is present (or call preadfd() again). `nleft` keeps track of chars
+   * left until \n or EOF. `lleft` keeps track of additional characters needed
+   * after that until preadfd() should be called. */
   for (;;) {
     int c;
 
@@ -105,7 +110,6 @@ static int preadbuffer() {
 
     if (!c) {
       memmove(q, q + 1, more);
-      n--;
     } else {
       q++;
 
@@ -122,7 +126,15 @@ static int preadbuffer() {
       break;
     }
   }
-  parsefile->nleft = n - 1;
+  parsefile->lleft = more;
+
+  if (vflag) {
+    int savec = *q;
+    *q        = '\0';
+    fputs(parsefile->nextc, stderr);
+    *q = savec;
+  }
+
   return (signed char)*parsefile->nextc++;
 }
 
@@ -150,11 +162,12 @@ static void setinputfd(int fd, int flags) {
     pushfile();
     parsefile->buf = NULL;
   }
-  parsefile->fd = fd;
+  parsefile->fd     = fd;
   parsefile->isatty = isatty(parsefile->fd);
   if (!parsefile->buf)
     parsefile->buf = xmalloc(BUFSIZ + 1);
   parsefile->nleft = 0;
+  parsefile->lleft = 0;
   plineno          = 1;
 }
 

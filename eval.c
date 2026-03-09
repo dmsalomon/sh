@@ -3,6 +3,7 @@
  * evaluate commands.
  */
 
+#include <assert.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <stdlib.h>
@@ -20,7 +21,6 @@
 #include "mem.h"
 #include "options.h"
 #include "output.h"
-#include "parser.h"
 #include "redir.h"
 #include "sh.h"
 #include "str.h"
@@ -28,7 +28,8 @@
 #include "var.h"
 
 int exitstatus;
-int forked = 0;
+int forked        = 0;
+char *commandname = NULL;
 
 static struct jmploc *funcret = NULL;
 
@@ -37,6 +38,8 @@ static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
 static int evalfunc(struct cfunc *, struct cexec *);
 static int evalcond(struct cmd *);
+
+static struct cexec *prepcmd(struct cexec *cmd);
 
 struct cfunc *last;
 
@@ -57,7 +60,8 @@ int eval(struct cmd *c) {
 
   switch (c->type) {
   case CEXEC:
-    ce         = (struct cexec *)c;
+    ce = (struct cexec *)c;
+    prepcmd(ce);
     exitstatus = evalcmd(ce);
     break;
 
@@ -133,8 +137,9 @@ int eval(struct cmd *c) {
 
   case CSUB:
     cu = (struct cunary *)c;
-    if ((pid = dfork()) == 0)
+    if ((pid = dfork()) == 0) {
       _exit(eval(cu->cmd));
+    }
     exitstatus = waitsh(pid);
     break;
 
@@ -151,6 +156,37 @@ int eval(struct cmd *c) {
   return exitstatus;
 }
 
+/* handles expansion and creates argc and argv */
+static struct cexec *prepcmd(struct cexec *cmd) {
+  int argc;
+  char **argv = NULL, **av;
+  struct arg *expargs, *ap;
+
+  expargs = expandargs(cmd->args);
+
+  if (xflag) {
+    dprintf(preverrfd, "%s", ps4val);
+    for (ap = expargs; ap; ap = ap->next) {
+      dprintf(preverrfd, "%s", ap->text);
+      if (ap->next)
+        dprintf(preverrfd, " ");
+    }
+    dprintf(preverrfd, "\n");
+  }
+
+  for (ap = expargs, argc = 0; ap; ap = ap->next, argc++)
+    ;
+
+  argv = av = stalloc(sizeof(*argv) * (argc + 1));
+  for (ap = expargs; ap; av++, ap = ap->next)
+    *av = ap->text;
+  *av = NULL;
+
+  cmd->argc = argc;
+  cmd->argv = argv;
+  return cmd;
+}
+
 /*
  * runs the command
  *
@@ -160,32 +196,30 @@ int eval(struct cmd *c) {
  * returns the exitstatus
  */
 int evalcmd(struct cexec *cmd) {
-  int i;
-  char argc, **argv;
-  struct arg *expargs, *ap;
+  // TODO handle this where it's supposed to be
+  // prepcmd(cmd);
 
-  argc    = 0;
-  expargs = expandargs(cmd->args);
+  // points to the cmd name (after assignments)
+  char **cmdname, **av;
 
-  for (ap = expargs; ap && isassignment(ap->text); ap = ap->next)
-    setvareq(ap->text, 0);
+  for (cmdname = cmd->argv; *cmdname && isassignment(*cmdname); cmdname++)
+    cmd->argc--;
 
-  expargs = ap;
-  for (; ap; ap = ap->next) {
-    argc++;
+  for (av = cmd->argv; av < cmdname; av++) {
+    if (*cmdname) {
+      // TODO fix
+      setvareq(*av, VEXPORT);
+    } else {
+      setvareq(*av, 0);
+    }
   }
 
-  if (argc == 0) {
-    DEBUGF("no cmd!");
-    return exitstatus;
-  }
+  assert(av || !*cmdname);
+  if (!*cmdname)
+    return 0;
 
-  argv = stalloc(sizeof(*argv) * (argc + 1));
-  for (i = 0, ap = expargs; i < argc; i++, ap = ap->next)
-    argv[i] = ap->text;
-  argv[i]   = NULL;
-  cmd->argv = argv;
-  cmd->argc = argc;
+  cmd->argv   = cmdname;
+  commandname = *cmdname;
 
   struct funcentry *fp = lookupfunc(cmd->argv[0], 0);
   if (fp)
@@ -453,6 +487,8 @@ pid_t dfork() {
     die("fork:");
   if (pid == 0) {
     forked++;
+    funcret = NULL;
+    loops   = NULL;
     sigclearmask();
     closescript();
     FORCEINTON;

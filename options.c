@@ -17,11 +17,13 @@ struct shparam shparam = {0};
 // static const char *const optnames[NOPTS] = {
 //     "stdin",
 //     "xtrace",
+//     "verbose",
 // };
 
 const char optletters[NOPTS] = {
     's',
     'x',
+    'v',
 };
 
 char optlist[NOPTS];
@@ -47,10 +49,11 @@ int options(char ***argv, int cmdline) {
       // either - or --
       if (p[0] == '\0' || (p[0] == '-' && p[1] == '\0')) {
         if (!cmdline) {
-          // single dash means -x and -v
+          // single dash means turn off -x and -v
           if (p[0] == '\0')
-            xflag = 0;
-          else if (!*argv)
+            xflag = vflag = 0;
+          else if (!*xargv)
+            // reset params
             setparam(xargv);
         }
         break;
@@ -143,8 +146,10 @@ int procargs(int argc, char **argv) {
 }
 
 int set_builtin(struct cexec *c) {
-  freeparam(&shparam);
-  setparam(c->argv + 1);
+  char **argv = c->argv + 1;
+  options(&argv, 0);
+  if (*argv)
+    setparam(argv);
   return 0;
 }
 

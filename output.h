@@ -17,7 +17,6 @@ void flushall(void);
 #define DEBUGF(fmt, ...)
 #endif
 
-
 #define die(...) sdie(2, __VA_ARGS__)
 
 #endif

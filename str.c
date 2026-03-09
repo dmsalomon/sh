@@ -13,6 +13,25 @@
 
 void badnum(const char *s) { raiseerr("illegal number: %s", s); }
 
+char *endofname(const char *name) {
+  char *p;
+
+  p = (char *)name;
+  if (!is_name(*p))
+    return p;
+  while (*++p)
+    if (!is_in_name(*p))
+      break;
+  return p;
+}
+
+int isassignment(const char *word) {
+  char *p;
+
+  p = endofname(word);
+  return p != word && *p == '=';
+}
+
 /*
  * Convert a string into an integer of type intmax_t.  Alow trailing spaces.
  */

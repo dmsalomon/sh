@@ -79,7 +79,8 @@ void initvar(void) {
 
   /* increment SHLVL */
   char *shlvl;
-  int shlvlval    = 1;
+  int shlvlval = 1;
+
   static char shlvlbuf[12] = "SHLVL=";
 
   if ((shlvl = lookupvar("SHLVL"))) {
@@ -199,7 +200,7 @@ out:
 }
 
 int export_builtin(struct cexec *cmd) {
-  /* lets not bother listing the variables
+  /* TODO lets not bother listing the variables
    * forget POSIX, at least for now */
 
   int flag = cmd->argv[0][0] == 'r' ? VRDONLY : VEXPORT;

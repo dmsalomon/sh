@@ -15,6 +15,7 @@ struct redirtab {
   int save;
 };
 
+int preverrfd = 2;
 struct redirtab *redirlist;
 
 int pushredirect(struct credir *cr) {
@@ -58,6 +59,10 @@ int pushredirect(struct credir *cr) {
   rtab->next = redirlist;
   redirlist  = rtab;
 
+  if (cr->fd == 2) {
+    preverrfd = rtab->save;
+  }
+
   INTON;
   return cr->fd;
 
@@ -86,6 +91,9 @@ void popredirect(void) {
     close(rtab->save);
   } else {
     close(rtab->fd);
+  }
+  if (rtab->fd == 2) {
+    preverrfd = 2;
   }
   INTON;
 }

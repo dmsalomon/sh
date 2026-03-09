@@ -45,9 +45,8 @@ builtins[] = {
     {"false", true_builtin},     {"fg", fg_builtin},
     {"read", read_builtin},      {"readonly", export_builtin},
     {"return", return_builtin},  {"set", set_builtin},
-    {"shift", shift_builtin},
-    {"source", source_builtin},  {"tokens", tokens_builtin},
-    {"true", true_builtin},
+    {"shift", shift_builtin},    {"source", source_builtin},
+    {"tokens", tokens_builtin},  {"true", true_builtin},
 };
 
 static int builtincmp(const void *v1, const void *v2) {
