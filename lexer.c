@@ -207,7 +207,8 @@ static int word(void) {
       } else {
         if (c == '{')
           brace = '}';
-        STPUTC('$', ypp);
+        c = '$';
+        pungetc();
       }
     }
 
@@ -226,7 +227,7 @@ static int word(void) {
 
     STPUTC(c, ypp);
 
-    if (c == '\n')
+    if (!brace && c == '\n')
       setprompt(2);
   }
 
@@ -244,7 +245,7 @@ static int word(void) {
 }
 
 void setprompt(int which) {
-  if (isatty(parsefile->fd)) {
+  if (parsefile->isatty) {
     switch (which) {
     case 1:
       fprintf(stderr, "%s", ps1val);

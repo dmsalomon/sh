@@ -4,6 +4,6 @@
 
 extern int rootpid;
 
-int repl(int);
+int repl(void);
 
 #endif

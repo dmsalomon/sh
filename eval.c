@@ -23,6 +23,7 @@
 #include "parser.h"
 #include "redir.h"
 #include "sh.h"
+#include "str.h"
 #include "trap.h"
 #include "var.h"
 
@@ -203,8 +204,8 @@ static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
   struct shparam saveparam = shparam;
 
   shparam.mallocd = 0;
-  shparam.argc    = cmd->argc - 1;
-  shparam.argv    = cmd->argv + 1;
+  shparam.np      = cmd->argc - 1;
+  shparam.p       = cmd->argv + 1;
 
   struct jmploc *savefuncret = funcret;
   struct looploc *saveloops  = loops;
@@ -223,7 +224,7 @@ static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
   DEBUGF("running func %s", cf->name);
   status = eval(cf->body);
 out:
-  free_shparam();
+  freeparam(&shparam);
   shparam = saveparam;
   loops   = saveloops;
   funcret = savefuncret;
@@ -233,7 +234,7 @@ out:
 void unwindrets() { funcret = NULL; }
 
 int return_builtin(struct cexec *cmd) {
-  int status = cmd->argc > 1 ? atoi(cmd->argv[1]) : 0;
+  int status = cmd->argc > 1 ? number(cmd->argv[1]) : 0;
 
   if (status <= 0)
     raiseerr("return: illegal number: %s", cmd->argv[1]);
@@ -255,7 +256,7 @@ int evalstring(char *s) {
 
   s = sstrdup(s);
   setinputstring(s, INPUT_PUSH_FILE);
-  status = repl(0);
+  status = repl();
   popfile();
   stfree(s);
 
@@ -281,7 +282,7 @@ int source_builtin(struct cexec *cmd) {
     goto out;
   }
   setinputfile(cmd->argv[1], INPUT_PUSH_FILE);
-  status = repl(0);
+  status = repl();
 out:
   popfile();
   funcret = saveret;
@@ -397,7 +398,7 @@ brk:
 }
 
 int break_builtin(struct cexec *cmd) {
-  int n = cmd->argc > 1 ? atoi(cmd->argv[1]) : 1;
+  int n = cmd->argc > 1 ? number(cmd->argv[1]) : 1;
   int type;
 
   if (n <= 0)

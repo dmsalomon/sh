@@ -2,6 +2,7 @@
  *
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,12 +13,14 @@
 #include "mem.h"
 #include "output.h"
 #include "parser.h"
+#include "str.h"
 #include "var.h"
 
 #define VTABSIZE 39
 
-static char ppid[32]                                           = "PPID=";
 static char linenovar[sizeof("LINENO=") + sizeof(int) * 8 + 2] = "LINENO=";
+
+static char ppid[32] = "PPID=";
 
 struct var varinit[] = {
     {0, VSTSTAT | VTXSTAT, "PS1=$ ", 0},
@@ -76,13 +79,15 @@ void initvar(void) {
 
   /* increment SHLVL */
   char *shlvl;
-  unsigned int shlvlval;
+  int shlvlval    = 1;
   static char shlvlbuf[12] = "SHLVL=";
 
   if ((shlvl = lookupvar("SHLVL"))) {
-    shlvlval = atoi(shlvl) + 1;
-  } else {
-    shlvlval = 1;
+    intmax_t n;
+    if (!atomax10(shlvl, &n))
+      shlvlval = n + 1;
+    if (shlvlval < 0)
+      shlvlval = 0;
   }
   if (shlvlval > 1023) {
     perrorf("warning: shell level (%u) too high, resetting to 1", shlvlval);

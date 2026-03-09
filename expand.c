@@ -1,8 +1,6 @@
 
 #include <assert.h>
-#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -10,13 +8,12 @@
 #include "error.h"
 #include "eval.h"
 #include "expand.h"
-#include "input.h"
 #include "lexer.h"
 #include "mem.h"
 #include "options.h"
 #include "output.h"
-#include "parser.h"
 #include "sh.h"
+#include "str.h"
 #include "var.h"
 
 static struct arg *cur;
@@ -51,6 +48,26 @@ struct arg *expandargs(struct arg *args) {
   return head;
 }
 
+/* v points to the beginning of a variable name after the $ symbol. The
+ * return value points to character after the end of the variable name. Any
+ * escaped newline sequences are removed from the variable. In that case the
+ * return variable still points to the continuation of the argument string after
+ * the variable name, but the portion of `v` that contains the rectified
+ * variable name will be nul-terminated.
+ */
+static inline char *endofvar(char *v) {
+  char *p = v, *q = v;
+  do {
+    while (is_in_name(*p))
+      *q++ = *p++;
+    while (p[0] == '\\' && p[1] == '\n')
+      p += 2;
+  } while (is_in_name(*p));
+  if (p != q)
+    *q = '\0';
+  return p;
+}
+
 static struct arg *expandarg(struct arg *arg) {
   int c;
   int wasquoted = 0;
@@ -80,17 +97,20 @@ static struct arg *expandarg(struct arg *arg) {
     } else if (c == '$' && quote != '\'') {
       if ((c = *++s) == '{') {
         p = ++s;
-        while ((c = *p) != '}')
+        while ((p = endofvar(p)) && *p != '}')
           p++;
         // now we are at the end of the thing
-        if (c != '}')
-          die("how did this happen, unused");
+        if (*p != '}')
+          die("how did this happen?!?!?!?!");
       } else if (c && strchr("$?@*#0123456789", c)) {
+        // single character variables
         p = s + 1;
-      } else if ((p = endofname(s)) == s) {
+      } else if ((p = endofvar(s)) == s) {
+        // just a plain $
         cappend('$');
         continue;
       }
+      // temporarily nul-terminate, but save the character we are clobbering.
       c  = *p;
       *p = '\0';
       varvalue(s);
@@ -175,24 +195,24 @@ static void varvalue(const char *name) {
     num = exitstatus;
     goto num;
   case '#':
-    num = shparam.argc;
+    num = shparam.np;
     goto num;
   num:
     numappend(num);
     break;
   case '*':
-    for (i = 0; i < shparam.argc; i++) {
-      expappend(shparam.argv[i]);
-      if (quote && i+1 < shparam.argc)
+    for (i = 0; i < shparam.np; i++) {
+      expappend(shparam.p[i]);
+      if (quote && i + 1 < shparam.np)
         cappend(IFS[0] ? IFS[0] : ' ');
-      else if (shparam.argv[i][0] != '\0')
+      else if (shparam.p[i][0] != '\0')
         cappend('\0');
     }
     break;
   case '@':
-    for (i = 0; i < shparam.argc; i++) {
-      expappend(shparam.argv[i]);
-      if (quote || shparam.argv[i][0] != '\0')
+    for (i = 0; i < shparam.np; i++) {
+      expappend(shparam.p[i]);
+      if (quote || shparam.p[i][0] != '\0')
         cappend('\0');
     }
     break;
@@ -210,10 +230,10 @@ static void varvalue(const char *name) {
     for (const char *s = name; *s; s++)
       if (!isdigit(*s))
         raiseerr("bad substitution: not a number");
-    i = atoi(name);
-    if (i < 0 || i > shparam.argc)
+    i = number(name);
+    if (i < 0 || i > shparam.np)
       break;
-    p = i ? shparam.argv[i-1] : pfname;
+    p = i ? shparam.p[i - 1] : arg0;
     goto value;
   default:
     // check that the varname is valid

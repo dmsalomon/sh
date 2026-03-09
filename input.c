@@ -151,6 +151,7 @@ static void setinputfd(int fd, int flags) {
     parsefile->buf = NULL;
   }
   parsefile->fd = fd;
+  parsefile->isatty = isatty(parsefile->fd);
   if (!parsefile->buf)
     parsefile->buf = xmalloc(BUFSIZ + 1);
   parsefile->nleft = 0;

@@ -13,6 +13,7 @@
 #include "lexer.h"
 #include "options.h"
 #include "output.h"
+#include "str.h"
 #include "var.h"
 
 #define LEN(a)     (sizeof(a) / sizeof(a[0]))
@@ -44,6 +45,7 @@ builtins[] = {
     {"false", true_builtin},     {"fg", fg_builtin},
     {"read", read_builtin},      {"readonly", export_builtin},
     {"return", return_builtin},  {"set", set_builtin},
+    {"shift", shift_builtin},
     {"source", source_builtin},  {"tokens", tokens_builtin},
     {"true", true_builtin},
 };
@@ -124,12 +126,7 @@ static int cd_builtin(struct cexec *cmd) {
  * the user can specify a status
  */
 static int exit_builtin(struct cexec *cmd) {
-  int status = 0;
-
-  if (cmd->argc > 1)
-    status = atoi(cmd->argv[1]);
-
-  _exit(status);
+  _exit(cmd->argc > 1 ? number(cmd->argv[1]) : exitstatus);
 }
 
 /* exec a program to replace the shell */
@@ -149,7 +146,7 @@ static int fg_builtin(struct cexec *cmd) {
     return 1;
   }
 
-  int pid = atoi(cmd->argv[1]);
+  int pid = number(cmd->argv[1]);
 
   if (kill(pid, SIGCONT)) {
     perrorf("fg: cannot resume %d", pid);

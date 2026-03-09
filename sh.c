@@ -4,7 +4,6 @@
  */
 
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "cmd.h"
@@ -13,7 +12,7 @@
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
-#include "output.h"
+#include "options.h"
 #include "parser.h"
 #include "redir.h"
 #include "sh.h"
@@ -23,24 +22,13 @@
 int rootpid;
 
 int main(int argc, char **argv) {
-  int fd, exception, status;
+  volatile int state = 0;
+  int exception, status;
   struct stackmark mark;
   struct jmploc jmploc;
 
-  if (argc > 1) {
-    if (strcmp(argv[1], "-c") == 0) {
-      if (argc > 2)
-        setinputstring(argv[2], 0);
-      else
-        die("-c requires an argument");
-    } else {
-      fd = setinputfile(argv[1], INPUT_NOFILE_OK);
-      if (fd < 0)
-        sdie(127, "%s:", argv[1]);
-    }
-  }
-
   INTOFF;
+
   if ((exception = setjmp(jmploc.loc))) {
     /* reset the shell */
     unwindredir();
@@ -52,6 +40,15 @@ int main(int argc, char **argv) {
     if (exception == EXINT)
       fputc('\n', stderr);
     status = exitstatus;
+    switch (state) {
+    case 0:
+      goto exit;
+    case 1:
+      goto state1;
+    default:
+      goto state4;
+      break;
+    }
   } else {
     pushstackmark(&mark);
     rootpid = getpid();
@@ -59,18 +56,30 @@ int main(int argc, char **argv) {
     signal_init();
     status = 0;
   }
-  handler = &jmploc;
+  parsefile->isatty = isatty(parsefile->fd);
+  handler           = &jmploc;
   FORCEINTON;
+  procargs(argc, argv);
+  state = 1;
+state1:
 
-  return repl(status);
+  if (minusc) {
+    evalstring(minusc);
+  }
+
+  if (sflag || !minusc)
+  state4:
+    repl();
+exit:
+  return exitstatus;
 }
 
-int repl(int status) {
+int repl() {
   struct cmd *cmd;
   struct stackmark mark;
 
   for (pushstackmark(&mark); (cmd = parseline()); popstackmark(&mark))
-    status = eval(cmd);
+    eval(cmd);
 
-  return status;
+  return exitstatus;
 }

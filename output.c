@@ -11,12 +11,13 @@
 
 #include "input.h"
 #include "output.h"
+#include "options.h"
 
 /*
  * Like perror but with formatting
  */
 void vperrorf(const char *fmt, va_list ap) {
-  fprintf(stderr, "%s: %d: ", pfname, plineno - 1);
+  fprintf(stderr, "%s: %d: ", arg0, plineno - 1);
   vfprintf(stderr, fmt, ap);
 
   if (fmt[0] && fmt[strlen(fmt) - 1] != ':') {

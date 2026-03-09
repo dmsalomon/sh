@@ -1,5 +1,4 @@
 
-#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -10,6 +9,7 @@
 #include "lexer.h"
 #include "mem.h"
 #include "parser.h"
+#include "str.h"
 
 static struct cmd *parselist(void);
 static struct cmd *parsecond(void);
@@ -26,8 +26,8 @@ static struct cmd *parsesimple(void);
 static struct cmd *parseredir(struct cmd *);
 static struct cmd *parsefunc(char *);
 
-static void expecting(int);
-static inline void unexpected(void);
+static void expecting(int) __attribute__((noreturn));
+static inline void unexpected(void) __attribute__((noreturn));
 
 static int cmplistdone(void);
 static int separator(void);

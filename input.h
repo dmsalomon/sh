@@ -19,6 +19,7 @@ struct parsefile {
   int lastc[2];
   int unget;
   char *fname;
+  int isatty;
 };
 
 extern struct parsefile *parsefile;
