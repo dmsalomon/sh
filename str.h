@@ -2,6 +2,9 @@
  * \file str.h
  */
 
+#ifndef STR_H
+#define STR_H
+
 #include <ctype.h>
 #include <stdint.h>
 
@@ -15,3 +18,5 @@ static inline int goodname(const char *p) { return !*endofname(p); }
 void badnum(const char *) __attribute__((noreturn));
 int atomax10(const char *, intmax_t *);
 int number(const char *);
+
+#endif

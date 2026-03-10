@@ -36,6 +36,7 @@ static struct jmploc *funcret = NULL;
 static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
+static int evalcase(struct cmd *);
 static int evalfunc(struct cfunc *, struct cexec *);
 static int evalbltin(struct cexec *c, builtin_func f);
 static int evalcond(struct cmd *);
@@ -150,8 +151,12 @@ int eval(struct cmd *c) {
     exitstatus = 0;
     break;
 
+  case CCASE:
+    exitstatus = evalcase(c);
+    break;
+
   default:
-    raiseerr("%d: not implemented", c->type);
+    raiseerr("CTYPE (%d): not implemented", c->type);
   }
 
   return exitstatus;
@@ -219,7 +224,7 @@ int evalcmd(struct cexec *cmd) {
   if (!*cmdname)
     return 0;
 
-  cmd->argv   = cmdname;
+  cmd->argv = cmdname;
 
   struct funcentry *fp = lookupfunc(cmd->argv[0], 0);
   if (fp)
@@ -234,9 +239,9 @@ int evalcmd(struct cexec *cmd) {
 
 static int evalbltin(struct cexec *c, builtin_func f) {
   char *volatile savecmdname;
-	struct jmploc *volatile savehandler;
-	struct jmploc here;
-	int i, status;
+  struct jmploc *volatile savehandler;
+  struct jmploc here;
+  int i, status;
 
   savecmdname = commandname;
   savehandler = handler;
@@ -244,12 +249,12 @@ static int evalbltin(struct cexec *c, builtin_func f) {
     status = exitstatus;
     goto done;
   }
-  handler = &here;
+  handler     = &here;
   commandname = c->argv[0];
-  status = f(c);
+  status      = f(c);
 done:
   commandname = savecmdname;
-  handler = savehandler;
+  handler     = savehandler;
   return status;
 }
 
@@ -497,6 +502,41 @@ static int evalfor(struct cmd *c) {
   loops = here.next;
   popstackmark(&fmark);
   return exitstatus;
+}
+
+static int evalcase(struct cmd *c) {
+  struct ccase *cc = (struct ccase *)c;
+  const char *expr = cc->expr;
+  struct cases *cs;
+  struct pattern *p;
+
+  printf("-------\nCCASE %s\n", cc->expr);
+  for (struct cases *cs = cc->list; cs; cs = cs->next) {
+    printf("patterns: ");
+    for (struct pattern *p = cs->patterns; p; p = p->next) {
+      printf("%s", p->pattern);
+      if (p->next)
+        printf("|");
+    }
+    printf("\n");
+  }
+  printf("-------\n");
+
+  int fallthrough = 0;
+  for (cs = cc->list; cs; cs = cs->next) {
+    for (p = cs->patterns; p; p = p->next) {
+      if (fallthrough || strcmp(p->pattern, expr) == 0) {
+        int status;
+        if (cs->cmd)
+          status = eval(cs->cmd);
+        fallthrough = cs->fallthrough;
+        if (!fallthrough)
+          return status;
+        break;
+      }
+    }
+  }
+  return 0;
 }
 
 /*

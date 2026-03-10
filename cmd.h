@@ -17,6 +17,7 @@
 #define CIF    12
 #define CFOR   13
 #define CFUNC  14
+#define CCASE  15
 
 struct cmd {
   int type;
@@ -72,6 +73,24 @@ struct cfor {
   char *var;
   struct arg *list;
   struct cmd *body;
+};
+
+struct pattern {
+  char *pattern;
+  struct pattern *next;
+};
+
+struct cases {
+  int fallthrough;
+  struct pattern *patterns;
+  struct cmd *cmd;
+  struct cases *next;
+};
+
+struct ccase {
+  int type;
+  char *expr;
+  struct cases *list;
 };
 
 struct cfunc {

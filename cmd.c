@@ -7,8 +7,8 @@
 #include "output.h"
 
 const char *cmdname[] = {
-    "exec",  "pipe",  "bang", "and",        "or", "sub",  "redir",
-    "while", "until", "list", "background", "if", "func", NULL,
+    "exec",  "pipe", "bang",       "and", "or",   "sub",  "redir", "while",
+    "until", "list", "background", "if",  "func", "case", NULL,
 };
 
 struct cmd *execcmd() {

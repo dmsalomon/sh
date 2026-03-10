@@ -1,4 +1,5 @@
 
+#include <assert.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -21,6 +22,7 @@ static struct cmd *parseloop(void);
 static struct cmd *parsedo(void);
 static struct cmd *parseif(void);
 static struct cmd *parsefor(void);
+static struct cmd *parsecase(void);
 static struct cmd *parseelse(void);
 static struct cmd *parsesimple(void);
 static struct cmd *parseredir(struct cmd *);
@@ -94,7 +96,7 @@ static struct cmd *parsepipe(void) {
   struct cmd *cmd;
   struct cmd *sub;
 
-  if (yytoken == TWORD && strcmp(yytext, "!") == 0) {
+  if (checkwd() == TBANG) {
     bang = 1;
     nexttoken();
   }
@@ -131,6 +133,7 @@ static struct cmd *parsecmd(void) {
   case TUNTL:
   case TIF:
   case TFOR:
+  case TCASE:
     return parsecmpcmd();
   default:
     return parsesimple();
@@ -157,6 +160,9 @@ static struct cmd *parsecmpcmd(void) {
   case TFOR:
     cmd = parsefor();
     break;
+  case TCASE:
+    cmd = parsecase();
+    break;
   default:
     return NULL;
   }
@@ -175,15 +181,15 @@ struct cmd *parsesub(void) {
 
   cmd = unrycmd(open == TLPAR ? CSUB : CBRC, parsecmplist());
 
-#if TLBRC + 1 != TRBRC || TLPAR + 1 != TRPAR
-#error Token assumptions
-#endif
+  // needed for next check to work
+  static_assert(TLBRC + 1 == TRBRC, "TRBRC should follow TLBRC");
+  static_assert(TLPAR + 1 == TRPAR, "TRPAR should follow TLPAR");
 
   if (yytoken != open + 1)
     expecting(open + 1);
 
-  /* defer nexttoken() for caller
-   * a hack necessary for cmd substitution parsing
+  /* HACK defer nexttoken() for caller
+   * necessary for cmd substitution parsing
    */
 
   return cmd;
@@ -192,10 +198,7 @@ struct cmd *parsesub(void) {
 static struct cmd *parsecmplist(void) {
   struct cmd *c;
 
-  while (yytoken == TNL) {
-    setprompt(2);
-    nexttoken();
-  }
+  linebreak();
 
   c = parsecond();
 
@@ -329,6 +332,98 @@ static struct cmd *parsefor(void) {
   body = parsedo();
 
   return forcmd(var, ap, body);
+}
+
+static struct pattern *patternlist(void) {
+  struct pattern *pat, *p;
+  pat = p = stalloc(sizeof(*pat));
+  do {
+    if (yytoken == TLPAR) {
+      nexttoken();
+    }
+
+    if (yytoken != TWORD)
+      expecting(TWORD);
+
+    p->pattern = yytext;
+
+    if (nexttoken() == TPIPE) {
+      p->next = stalloc(sizeof(*pat));
+      nexttoken();
+    } else {
+      p->next = NULL;
+    }
+    p = p->next;
+  } while (p);
+  return pat;
+}
+
+#define ENDCASEITEM                                                            \
+  (yytoken == TDSEMI || yytoken == TSEMIA || checkwd() == TESAC)
+
+static struct cases *parsecaselist(void) {
+  struct cases *cases;
+  struct cases **cpp = &cases;
+
+  while (checkwd() != TESAC) {
+    struct cases *cp = stalloc(sizeof(*cp));
+
+    cp->patterns = patternlist();
+
+    if (yytoken != TRPAR)
+      expecting(TRPAR);
+
+    nexttoken();
+    linebreak();
+
+    cp->cmd = ENDCASEITEM ? NULL : parsecmplist();
+
+    if (!ENDCASEITEM)
+      unexpected();
+
+    cp->fallthrough = yytoken == TSEMIA ? 1 : 0;
+
+    if (yytoken != TESAC) {
+      nexttoken();
+      linebreak();
+    }
+
+    *cpp = cp;
+    cpp  = &(*cpp)->next;
+  }
+  *cpp = NULL;
+  return cases;
+}
+
+static struct cmd *parsecase(void) {
+  char *expr;
+
+  if (yytoken != TCASE)
+    expecting(TCASE);
+
+  if (nexttoken() != TWORD)
+    unexpected();
+  expr = yytext;
+
+  nexttoken();
+  linebreak();
+
+  if (checkwd() != TIN)
+    expecting(TIN);
+
+  nexttoken();
+  linebreak();
+
+  struct ccase *c = stalloc(sizeof(*c));
+  c->type         = CCASE;
+  c->expr         = expr;
+  c->list         = parsecaselist();
+
+  if (yytoken != TESAC)
+    expecting(TESAC);
+  nexttoken();
+
+  return (struct cmd *)c;
 }
 
 static struct cmd *parsesimple(void) {
@@ -510,6 +605,9 @@ static int cmplistdone(void) {
   case TELSE:
   case TELIF:
   case TFI:
+  case TDSEMI:
+  case TSEMIA:
+  case TESAC:
     return 1;
   default:
     return 0;
@@ -524,7 +622,8 @@ static inline void unexpected() { expecting(-1); }
 
 static void expecting(int tok) {
   // also consume the newline as well
-  consumeline(1);
+  if (yytoken != TNL)
+    consumeline(1);
 
   if (tok > 0)
     raiseerr("syntax: `%s` unexpected (expecting `%s`)", yytext, toktxt[tok]);

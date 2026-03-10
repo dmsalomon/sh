@@ -1,5 +1,6 @@
 
 #include <alloca.h>
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -18,19 +19,24 @@ int yytoken     = TNL;
 char *yytext;
 struct cbinary *subst;
 
+#define LEN(a) (sizeof(a) / sizeof(a[0]))
+
 const char *tokname[] = {
-    "TEOF",  "TNL",   "TSEMI", "TPIPE", "TAND",  "TOR",   "TBGND", "TLPAR",
-    "TRPAR", "TLESS", "TGRTR", "TDLSS", "TDGRT", "TWORD", "TNOT",  "TWHLE",
-    "TUNTL", "TDO",   "TDONE", "TIF",   "TTHEN", "TELSE", "TELIF", "TFI",
-    "TFOR",  "TIN",   "TLBRC", "TRBRC", NULL,
+    "TEOF",  "TNL",   "TSEMI", "TSEMIA", "TDSEMI", "TPIPE", "TAND",
+    "TOR",   "TBGND", "TLPAR", "TRPAR",  "TLESS",  "TGRTR", "TDLSS",
+    "TDGRT", "TWORD", "TWHLE", "TUNTL",  "TDO",    "TDONE", "TIF",
+    "TTHEN", "TELSE", "TELIF", "TFI",    "TFOR",   "TIN",   "TCASE",
+    "TESAC", "TLBRC", "TRBRC", "TBANG",  NULL,
 };
+static_assert(LEN(tokname) == TMAX + 1, "tokname should have length TMAX+1");
 
 const char *toktxt[] = {
-    "<EOF>", "<NL>", ";",    "|",  "&&",   "||",   "&",    "(",
-    ")",     "<",    ">",    "<<", ">>",   "word", "!",    "while",
-    "until", "do",   "done", "if", "then", "else", "elif", "fi",
-    "for",   "in",   "{",    "}",  NULL,
+    "<EOF>", "<NL>", ";",  ";&",   ";;",   "|",    "&&",     "||",    "&",
+    "(",     ")",    "<",  ">",    "<<",   ">>",   "<WORD>", "while", "until",
+    "do",    "done", "if", "then", "else", "elif", "fi",     "for",   "in",
+    "case",  "esac", "{",  "}",    "!",    NULL,
 };
+static_assert(LEN(toktxt) == TMAX + 1, "tokname should have length TMAX+1");
 
 static int readchar(void);
 static int word(void);
@@ -46,7 +52,14 @@ repeat:
     yytoken = TEOF;
     break;
   case ';':
-    yytoken = TSEMI;
+    if ((c = readchar()) == ';') {
+      yytoken = TDSEMI;
+    } else if (c == '&') {
+      yytoken = TSEMIA;
+    } else {
+      pungetc();
+      yytoken = TSEMI;
+    }
     break;
   case '&':
     c = readchar();
@@ -148,14 +161,12 @@ int skipspaces(void) {
 }
 
 int checkwd(void) {
-  const char **p;
-
   if (yytoken != TWORD)
     return yytoken;
 
-  for (p = &toktxt[KWDOFFSET]; *p; p++)
-    if (strcmp(*p, yytext) == 0)
-      return yytoken = (p - toktxt);
+  for (int i = KWDOFFSET; i < TMAX; i++)
+    if (strcmp(toktxt[i], yytext) == 0)
+      return yytoken = i;
 
   return yytoken;
 }

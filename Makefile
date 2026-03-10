@@ -33,8 +33,11 @@ dist: $(TAR)
 re: clean all
 
 debug: CFLAGS += -ggdb -DDEBUG
-
 debug: all
+
+.PHONY: fmt
+fmt:
+	clang-format -i *.c *.h
 
 .PHONY: run
 run: all
