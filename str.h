@@ -19,4 +19,6 @@ void badnum(const char *) __attribute__((noreturn));
 int atomax10(const char *, intmax_t *);
 int number(const char *);
 
+int glob_match(const char *str, const char *pat);
+
 #endif

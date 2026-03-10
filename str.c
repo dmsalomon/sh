@@ -68,3 +68,34 @@ int number(const char *s) {
 
   return n;
 }
+
+int glob_match(const char *str, const char *pat) {
+  const char *star  = 0;
+  const char *match = 0;
+
+  while (*str) {
+    if (*pat == '?' || *pat == *str) {
+      str++;
+      pat++;
+    } else if (*pat == '*') {
+      star = pat;
+
+      /* collapse consecutive '*' */
+      while (*pat == '*')
+        pat++;
+
+      match = str;
+    } else if (star) {
+      pat = star + 1;
+      str = ++match;
+    } else {
+      return 0;
+    }
+  }
+
+  /* allow trailing '*' to match empty */
+  while (*pat == '*')
+    pat++;
+
+  return *pat == '\0';
+}

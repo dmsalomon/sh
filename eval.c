@@ -510,6 +510,7 @@ static int evalcase(struct cmd *c) {
   struct cases *cs;
   struct pattern *p;
 
+#ifdef DEBUG
   printf("-------\nCCASE %s\n", cc->expr);
   for (struct cases *cs = cc->list; cs; cs = cs->next) {
     printf("patterns: ");
@@ -521,11 +522,12 @@ static int evalcase(struct cmd *c) {
     printf("\n");
   }
   printf("-------\n");
+#endif
 
   int fallthrough = 0;
   for (cs = cc->list; cs; cs = cs->next) {
     for (p = cs->patterns; p; p = p->next) {
-      if (fallthrough || strcmp(p->pattern, expr) == 0) {
+      if (fallthrough || glob_match(expr, p->pattern)) {
         int status;
         if (cs->cmd)
           status = eval(cs->cmd);

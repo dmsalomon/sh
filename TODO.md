@@ -1,11 +1,16 @@
 - [x] set builtin (for args)
-- [x] $@
+- [x] $@ and $*
+- [ ] $_
 - [ ] variable substitution extensions
-  - [ ] parameterize expansion using a struct instead of globals
-- [ ] sourcing /etc/profile and .profile
-- [ ] implement case statement
+  - [ ] recursive variable parsing
+- [ ] redo variable expansion for file redirection
+- [ ] sourcing /etc/profile and .profile and $ENV
+- [x] implement case statement
+  - [x] parsing
+  - [x] eval logic
+  - [ ] variable expansion in `expr` and 
+  - [x] globs
 - [ ] aliases
 - [ ] file globbing
 - [ ] env vars for cmd exec (mklocal)
   - [ ] local variables
-- [ ] 
