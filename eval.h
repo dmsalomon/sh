@@ -7,9 +7,9 @@
 #include "cmd.h"
 #include <sys/types.h>
 
-extern int forked;
 extern int exitstatus;
-extern struct shparam shparam;
+extern int forked;
+extern char *commandname;
 
 int eval(struct cmd *);
 int evalcmd(struct cexec *);

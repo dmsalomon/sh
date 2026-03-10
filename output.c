@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "eval.h"
 #include "input.h"
 #include "options.h"
 #include "output.h"
@@ -17,7 +18,8 @@
  * Like perror but with formatting
  */
 void vperrorf(const char *fmt, va_list ap) {
-  fprintf(stderr, "%s: %d: ", arg0, plineno - 1);
+  const char *prefmt = commandname ? "%s: %d: %s: " : "%s: %d: ";
+  fprintf(stderr, prefmt, arg0, plineno - 1, commandname);
   vfprintf(stderr, fmt, ap);
 
   if (fmt[0] && fmt[strlen(fmt) - 1] != ':') {

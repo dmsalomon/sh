@@ -28,7 +28,7 @@
 #include "var.h"
 
 int exitstatus;
-int forked        = 0;
+int forked;
 char *commandname = NULL;
 
 static struct jmploc *funcret = NULL;
@@ -37,6 +37,7 @@ static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
 static int evalfunc(struct cfunc *, struct cexec *);
+static int evalbltin(struct cexec *c, builtin_func f);
 static int evalcond(struct cmd *);
 
 static struct cexec *prepcmd(struct cexec *cmd);
@@ -219,17 +220,37 @@ int evalcmd(struct cexec *cmd) {
     return 0;
 
   cmd->argv   = cmdname;
-  commandname = *cmdname;
 
   struct funcentry *fp = lookupfunc(cmd->argv[0], 0);
   if (fp)
     return evalfunc(fp->func, cmd);
 
-  builtin_func bt = get_builtin(cmd->argv[0]);
-  if (bt)
-    return (*bt)(cmd);
+  builtin_func bf = get_builtin(cmd->argv[0]);
+  if (bf)
+    return evalbltin(cmd, bf);
 
   return runprog(cmd);
+}
+
+static int evalbltin(struct cexec *c, builtin_func f) {
+  char *volatile savecmdname;
+	struct jmploc *volatile savehandler;
+	struct jmploc here;
+	int i, status;
+
+  savecmdname = commandname;
+  savehandler = handler;
+  if ((i = setjmp(here.loc))) {
+    status = exitstatus;
+    goto done;
+  }
+  handler = &here;
+  commandname = c->argv[0];
+  status = f(c);
+done:
+  commandname = savecmdname;
+  handler = savehandler;
+  return status;
 }
 
 static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
@@ -270,8 +291,8 @@ void unwindrets() { funcret = NULL; }
 int return_builtin(struct cexec *cmd) {
   int status = cmd->argc > 1 ? number(cmd->argv[1]) : 0;
 
-  if (status <= 0)
-    raiseerr("return: illegal number: %s", cmd->argv[1]);
+  if (status < 0)
+    raiseerr("illegal number: %s", cmd->argv[1]);
 
   if (!funcret)
     _exit(status);
@@ -436,7 +457,7 @@ int break_builtin(struct cexec *cmd) {
   int type;
 
   if (n <= 0)
-    raiseerr("break: bad number: %s", cmd->argv[1]);
+    raiseerr("bad number: %s", cmd->argv[1]);
   type = (cmd->argv[0][0] == 'c') ? SKIPCONT : SKIPBREAK;
   return poploop(n, type);
 }
