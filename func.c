@@ -2,6 +2,7 @@
  *
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -40,15 +41,11 @@ struct funcentry *lookupfunc(const char *name, int add) {
 
 void defunc(struct cfunc *cf) {
   struct funcentry *fp = lookupfunc(cf->name, 1);
-  if (!fp) {
-    die("fp is null!!!\n");
-  }
+#ifdef DEBUG
+  assert(fp && "this function should be adding an entry");
+#endif
   if (fp->func) {
-    DEBUGF("%s already defined", cf->name);
     freecmd((struct cmd *)fp->func);
-    fp->func = (struct cfunc *)copycmd((struct cmd *)cf);
-  } else {
-    DEBUGF("defining %s", cf->name);
-    fp->func = (struct cfunc *)copycmd((struct cmd *)cf);
   }
+  fp->func = (struct cfunc *)copycmd((struct cmd *)cf);
 }

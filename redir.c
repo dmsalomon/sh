@@ -5,6 +5,7 @@
 
 #include "cmd.h"
 #include "error.h"
+#include "expand.h"
 #include "mem.h"
 #include "output.h"
 #include "redir.h"
@@ -38,9 +39,11 @@ int pushredirect(struct credir *cr) {
     break;
   }
 
+  const char *fname = exparg(cr->fname);
+
   INTOFF;
-  if ((ofd = open(cr->file, mode, 0666)) < 0) {
-    perrorf("%s:", cr->file);
+  if ((ofd = open(fname, mode, 0666)) < 0) {
+    perrorf("%s:", fname);
     goto bad;
   }
 

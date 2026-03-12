@@ -7,6 +7,7 @@
 #include <stdarg.h>
 
 void vperrorf(const char *fmt, va_list);
+void vpreperrorf(const char *pre, const char *fmt, va_list);
 void perrorf(const char *fmt, ...);
 void sdie(int status, const char *fmt, ...) __attribute__((noreturn));
 void flushall(void);

@@ -17,9 +17,11 @@
 /*
  * Like perror but with formatting
  */
-void vperrorf(const char *fmt, va_list ap) {
+void vpreperrorf(const char *pre, const char *fmt, va_list ap) {
   const char *prefmt = commandname ? "%s: %d: %s: " : "%s: %d: ";
   fprintf(stderr, prefmt, arg0, plineno - 1, commandname);
+  if (pre)
+    fputs(pre, stderr);
   vfprintf(stderr, fmt, ap);
 
   if (fmt[0] && fmt[strlen(fmt) - 1] != ':') {
@@ -28,6 +30,10 @@ void vperrorf(const char *fmt, va_list ap) {
     fputc(' ', stderr);
     perror(NULL);
   }
+}
+
+void vperrorf(const char *fmt, va_list ap) {
+  vpreperrorf(NULL, fmt, ap);
 }
 
 void perrorf(const char *fmt, ...) {

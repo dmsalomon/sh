@@ -505,27 +505,35 @@ static int evalfor(struct cmd *c) {
 }
 
 static int evalcase(struct cmd *c) {
+  int status = 0;
+
   struct ccase *cc = (struct ccase *)c;
-  const char *expr = cc->expr;
   struct cases *cs;
-  struct pattern *p;
+  struct arg *p;
+
+  struct stackmark mark;
+  pushstackmark(&mark);
+
+  const char *res = exparg(cc->expr);
 
   int fallthrough = 0;
   for (cs = cc->list; cs; cs = cs->next) {
     for (p = cs->patterns; p; p = p->next) {
-      if (fallthrough || glob_match(expr, p->pattern)) {
-        int status;
+      char *pattern = exparg(p);
+      if (fallthrough || glob_match(res, pattern)) {
         if (cs->cmd)
           status = eval(cs->cmd);
         fallthrough = cs->fallthrough;
-        // if fallthrough, try other cases
         if (!fallthrough)
-          return status;
+          goto out;
         break;
       }
     }
   }
-  return 0;
+
+out:
+  popstackmark(&mark);
+  return status;
 }
 
 /*

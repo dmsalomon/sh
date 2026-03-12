@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -28,32 +29,38 @@ static struct arg *cur;
 static char *expdest;
 static int quote;
 static int len;
-static int filename;
+static int split;
 
-static struct arg *expandarg(struct arg *);
 static void procvalue(struct cmd *);
 static void varvalue(const char *);
 static void numappend(int);
 static void expappend(const char *);
 static void cappend(int);
 
+/* Expands a list of args for command execution */
 struct arg *expandargs(struct arg *args) {
-  struct arg *head, *cur, *next;
+  struct arg *head, **cur = &head, *cp;
+  split = 1;
 
-  if (!args)
-    return NULL;
-
-  head = cur = expandarg(args);
-  next       = expandargs(args->next);
-
-  if (!head)
-    return next;
-
-  while (cur->next)
-    cur = cur->next;
-  cur->next = next;
-
+  while (args) {
+    *cur = cp = expandarg(args);
+    if (cp) {
+      while (cp->next)
+        cp = cp->next;
+      cur = &cp->next;
+    }
+    args = args->next;
+  }
+  *cur = NULL;
   return head;
+}
+
+/* Expands a single arg with no splitting.
+ * Used for case expr/pattern and file redirection. */
+char *exparg(struct arg *arg) {
+  split = 0;
+  arg   = expandarg(arg);
+  return arg ? arg->text : "";
 }
 
 /* v points to the beginning of a variable name after the $ symbol. The
@@ -64,6 +71,8 @@ struct arg *expandargs(struct arg *args) {
  * variable name will be nul-terminated.
  */
 static inline char *endofvar(char *v) {
+  while (is_in_name(*v))
+    v++;
   char *p = v, *q = v;
   do {
     while (is_in_name(*p))
@@ -76,7 +85,7 @@ static inline char *endofvar(char *v) {
   return p;
 }
 
-static struct arg *expandarg(struct arg *arg) {
+struct arg *expandarg(struct arg *arg) {
   int c;
   int wasquoted = 0;
   char *s, *p;
@@ -88,8 +97,19 @@ static struct arg *expandarg(struct arg *arg) {
   expdest = 0;
   first = cur = stalloc(sizeof(*cur));
 
+  // fast path
+  if (!*endofname(arg->text)) {
+    s = arg->text;
+    STARTSTACKSTR(expdest);
+    while (*s) {
+      STPUTC(*s++, expdest);
+      len++;
+    }
+    goto out;
+  }
+
   for (s = arg->text; (c = *s);) {
-    if (quote && quote == c) {
+    if (quote == c) {
       quote = 0;
     } else if (!quote && (c == '\'' || c == '"')) {
       quote     = c;
@@ -136,6 +156,7 @@ static struct arg *expandarg(struct arg *arg) {
     s++;
   }
 
+out:
   if (len == 0) {
     if (wasquoted) {
       cappend('\0');
@@ -183,7 +204,7 @@ static void procvalue(struct cmd *cmd) {
   INTON;
 
   /* strip newlines even if quoted */
-  if ((quote || filename) && expdest && lastc == '\n' &&
+  if ((quote || !split) && expdest && lastc == '\n' &&
       STTOPC(expdest) == '\n') {
     expdest--;
     len--;
@@ -266,9 +287,10 @@ static void numappend(int n) {
 }
 
 static void expappend(const char *s) {
-  if (quote == '"' || filename) {
+  if (quote == '"' || !split) {
     while (*s)
       cappend(*s++);
+    return;
   }
 
   int inword = 0;
@@ -288,13 +310,6 @@ static void expappend(const char *s) {
       inword = 1;
     }
   }
-}
-
-char *expfilename(struct arg *arg) {
-  filename = 1;
-  arg      = expandarg(arg);
-  filename = 0;
-  return arg->text;
 }
 
 static void cappend(int c) {

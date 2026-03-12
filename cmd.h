@@ -51,7 +51,7 @@ struct cunary {
 struct credir {
   int type;
   struct cmd *cmd;
-  char *file;
+  struct arg *fname;
   int mode;
   int fd;
 };
@@ -76,21 +76,16 @@ struct cfor {
   struct cmd *body;
 };
 
-struct pattern {
-  char *pattern;
-  struct pattern *next;
-};
-
 struct cases {
   int fallthrough;
-  struct pattern *patterns;
+  struct arg *patterns;
   struct cmd *cmd;
   struct cases *next;
 };
 
 struct ccase {
   int type;
-  char *expr;
+  struct arg *expr;
   struct cases *list;
 };
 
@@ -104,10 +99,11 @@ struct cfunc {
 struct cmd *execcmd(void);
 struct cmd *bincmd(int, struct cmd *, struct cmd *);
 struct cmd *unrycmd(int, struct cmd *);
-struct cmd *redircmd(struct cmd *, char *, int, int);
+struct cmd *redircmd(struct cmd *, struct arg *, int, int);
 struct cmd *loopcmd(int, struct cmd *, struct cmd *);
 struct cmd *ifcmd(struct cmd *, struct cmd *, struct cmd *);
 struct cmd *forcmd(char *, struct arg *, struct cmd *);
+struct cmd *casecmd(struct arg *expr, struct cases *cases);
 struct cmd *funccmd(char *, struct cmd *);
 
 /* deepcopy */

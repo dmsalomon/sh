@@ -4,6 +4,7 @@
 
 #include <setjmp.h>
 #include <signal.h>
+#include <stdarg.h>
 
 struct jmploc {
   jmp_buf loc;
@@ -45,6 +46,8 @@ extern volatile sig_atomic_t intpending;
 void exraise(int) __attribute__((noreturn));
 void onint(void) __attribute__((noreturn));
 void raiseexc(int, const char *, ...) __attribute__((noreturn));
-void raiseerr(const char *, ...) __attribute__((noreturn));
+void raiseerr(const char *fmt, ...) __attribute__((noreturn));
+void vraiseerr(const char *fmt, va_list ap) __attribute__((noreturn));
+void vpreraiseerr(const char *pre, const char *fmt, va_list ap) __attribute__((noreturn));
 
 #endif

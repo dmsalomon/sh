@@ -46,13 +46,20 @@ void raiseexc(int e, const char *fmt, ...) {
 
 void raiseerr(const char *fmt, ...) {
   va_list ap;
-
   va_start(ap, fmt);
-  vperrorf(fmt, ap);
-
-  exitstatus = 2;
-  exraise(EXERR);
-
+  vraiseerr(fmt, ap);
   /* unreachable */
   va_end(ap);
+}
+
+void vraiseerr(const char *fmt, va_list ap) {
+  vperrorf(fmt, ap);
+  exitstatus = 2;
+  exraise(EXERR);
+}
+
+void vpreraiseerr(const char *pre, const char *fmt, va_list ap) {
+  vpreperrorf(pre, fmt, ap);
+  exitstatus = 2;
+  exraise(EXERR);
 }

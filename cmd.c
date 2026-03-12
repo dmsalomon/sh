@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "cmd.h"
+#include "lexer.h"
 #include "mem.h"
 #include "output.h"
 
@@ -43,14 +44,14 @@ struct cmd *unrycmd(int c, struct cmd *subcmd) {
   return (struct cmd *)cmd;
 }
 
-struct cmd *redircmd(struct cmd *subcmd, char *file, int mode, int fd) {
+struct cmd *redircmd(struct cmd *subcmd, struct arg *fname, int mode, int fd) {
   struct credir *cmd;
-  cmd       = stalloc(sizeof(*cmd));
-  cmd->type = CREDIR;
-  cmd->cmd  = subcmd;
-  cmd->file = file;
-  cmd->mode = mode;
-  cmd->fd   = fd;
+  cmd        = stalloc(sizeof(*cmd));
+  cmd->type  = CREDIR;
+  cmd->cmd   = subcmd;
+  cmd->fname = fname;
+  cmd->mode  = mode;
+  cmd->fd    = fd;
   return (struct cmd *)cmd;
 }
 
@@ -83,6 +84,15 @@ struct cmd *forcmd(char *var, struct arg *args, struct cmd *body) {
   return (struct cmd *)cmd;
 }
 
+struct cmd *casecmd(struct arg *expr, struct cases *cases) {
+  struct ccase *cmd;
+  cmd       = stalloc(sizeof(*cmd));
+  cmd->type = CCASE;
+  cmd->expr = expr;
+  cmd->list = cases;
+  return (struct cmd *)cmd;
+}
+
 struct cmd *funccmd(char *name, struct cmd *body) {
   struct cfunc *cmd;
   cmd       = stalloc(sizeof(*cmd));
@@ -106,19 +116,6 @@ static inline struct arg *copyargs(struct arg *ap) {
   return bp;
 }
 
-struct pattern *copypatterns(struct pattern *ap) {
-  struct pattern *pp, **ppp = &pp;
-
-  while (ap) {
-    *ppp            = xmalloc(sizeof(*pp));
-    (*ppp)->pattern = xstrdup(ap->pattern);
-    ppp             = &(*ppp)->next;
-    ap              = ap->next;
-  }
-  *ppp = NULL;
-  return pp;
-}
-
 struct cases *copycases(struct cases *ac) {
   struct cases *cp, **cpp = &cp;
 
@@ -126,7 +123,7 @@ struct cases *copycases(struct cases *ac) {
     *cpp                = xmalloc(sizeof(*cp));
     (*cpp)->cmd         = copycmd(ac->cmd);
     (*cpp)->fallthrough = ac->fallthrough;
-    (*cpp)->patterns    = copypatterns(ac->patterns);
+    (*cpp)->patterns    = copyargs(ac->patterns);
     cpp                 = &(*cpp)->next;
     ac                  = ac->next;
   }
@@ -185,11 +182,11 @@ struct cmd *copycmd(struct cmd *c) {
     cr  = (struct credir *)c;
     ccr = xmalloc(sizeof(*ccr));
 
-    ccr->type = cr->type;
-    ccr->cmd  = copycmd(cr->cmd);
-    ccr->file = xstrdup(cr->file);
-    ccr->mode = cr->mode;
-    ccr->fd   = cr->fd;
+    ccr->type  = cr->type;
+    ccr->cmd   = copycmd(cr->cmd);
+    ccr->fname = copyargs(cr->fname);
+    ccr->mode  = cr->mode;
+    ccr->fd    = cr->fd;
     return (struct cmd *)ccr;
 
   case CWHILE:
@@ -227,7 +224,7 @@ struct cmd *copycmd(struct cmd *c) {
     ccc = xmalloc(sizeof(*ccc));
 
     ccc->type = cc->type;
-    ccc->expr = xstrdup(cc->expr);
+    ccc->expr = copyargs(cc->expr);
     ccc->list = copycases(cc->list);
     return (struct cmd *)ccc;
 
@@ -257,21 +254,11 @@ static inline void freeargs(struct arg *ap) {
   }
 }
 
-static inline void freepattern(struct pattern *p) {
-  struct pattern *next;
-  while (p) {
-    next = p->next;
-    free(p->pattern);
-    free(p);
-    p = next;
-  }
-}
-
 static inline void freecases(struct cases *cp) {
   struct cases *next;
   while (cp) {
     next = cp->next;
-    freepattern(cp->patterns);
+    freeargs(cp->patterns);
     freecmd(cp->cmd);
     free(cp);
     cp = next;
@@ -322,7 +309,7 @@ void freecmd(struct cmd *c) {
     cr = (struct credir *)c;
 
     freecmd(cr->cmd);
-    free(cr->file);
+    freeargs(cr->fname);
     break;
 
   case CWHILE:
@@ -351,7 +338,7 @@ void freecmd(struct cmd *c) {
 
   case CCASE:
     cc = (struct ccase *)c;
-    free(cc->expr);
+    freeargs(cc->expr);
     freecases(cc->list);
     break;
 

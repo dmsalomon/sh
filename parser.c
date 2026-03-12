@@ -1,11 +1,9 @@
 
 #include <assert.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "cmd.h"
 #include "error.h"
-#include "expand.h"
 #include "input.h"
 #include "lexer.h"
 #include "mem.h"
@@ -30,6 +28,7 @@ static struct cmd *parsefunc(char *);
 
 static void expecting(int) __attribute__((noreturn));
 static inline void unexpected(void) __attribute__((noreturn));
+static void syntaxerr(const char *fmt, ...) __attribute__((noreturn));
 
 static int cmplistdone(void);
 static int separator(void);
@@ -334,8 +333,8 @@ static struct cmd *parsefor(void) {
   return forcmd(var, ap, body);
 }
 
-static struct pattern *patternlist(void) {
-  struct pattern *pat, *p;
+static struct arg *patternlist(void) {
+  struct arg *pat, *p;
   pat = p = stalloc(sizeof(*pat));
   do {
     if (yytoken == TLPAR) {
@@ -345,7 +344,8 @@ static struct pattern *patternlist(void) {
     if (yytoken != TWORD)
       expecting(TWORD);
 
-    p->pattern = yytext;
+    p->text  = yytext;
+    p->subst = subst;
 
     if (nexttoken() == TPIPE) {
       p->next = stalloc(sizeof(*pat));
@@ -391,19 +391,26 @@ static struct cases *parsecaselist(void) {
     *cpp = cp;
     cpp  = &(*cpp)->next;
   }
+
+  if (yytoken != TESAC)
+    expecting(TESAC);
+  nexttoken();
+
   *cpp = NULL;
   return cases;
 }
 
 static struct cmd *parsecase(void) {
-  char *expr;
-
   if (yytoken != TCASE)
     expecting(TCASE);
 
   if (nexttoken() != TWORD)
     unexpected();
-  expr = yytext;
+
+  struct arg *expr = stalloc(sizeof(*expr));
+  expr->text       = yytext;
+  expr->subst      = subst;
+  expr->next       = NULL;
 
   nexttoken();
   linebreak();
@@ -414,16 +421,7 @@ static struct cmd *parsecase(void) {
   nexttoken();
   linebreak();
 
-  struct ccase *c = stalloc(sizeof(*c));
-  c->type         = CCASE;
-  c->expr         = expr;
-  c->list         = parsecaselist();
-
-  if (yytoken != TESAC)
-    expecting(TESAC);
-  nexttoken();
-
-  return (struct cmd *)c;
+  return casecmd(expr, parsecaselist());
 }
 
 static struct cmd *parsesimple(void) {
@@ -448,7 +446,7 @@ static struct cmd *parsesimple(void) {
   }
   *app = NULL;
 
-  if (yytoken == TLPAR && ecmd->args->next == NULL)
+  if (yytoken == TLPAR && (struct cmd *)ecmd == cmd && ecmd->args->next == NULL)
     return parsefunc(ecmd->args->text);
 
   if (!ecmd->argc)
@@ -461,6 +459,10 @@ static struct cmd *parsefunc(char *name) {
 
   if (yytoken != TLPAR)
     expecting(TLPAR);
+
+  if (*endofname(name))
+    syntaxerr("%s: bad function name", name);
+
   if (nexttoken() != TRPAR)
     expecting(TRPAR);
 
@@ -480,7 +482,6 @@ static struct cmd *parseredir(struct cmd *cmd) {
   int fd;
   int op;
   struct credir *cr;
-  char *filename;
 
   for (;;) {
     switch (yytoken) {
@@ -529,11 +530,10 @@ static struct cmd *parseredir(struct cmd *cmd) {
     }
 
     /* expand yytext for full filename */
-    struct arg *a = stalloc(sizeof(*a));
-    a->text       = yytext;
-    a->subst      = subst;
-    a->next       = NULL;
-    filename      = expfilename(a);
+    struct arg *filename = stalloc(sizeof(*filename));
+    filename->text       = yytext;
+    filename->subst      = subst;
+    filename->next       = NULL;
 
     /* stack redirection in FIFO order
      * this can be optimized but I dont care :)
@@ -621,12 +621,20 @@ static int ionumber(const char *word) {
 static inline void unexpected() { expecting(-1); }
 
 static void expecting(int tok) {
+  if (tok < 0)
+    syntaxerr("`%s` unexpected", yytext);
+  else
+    syntaxerr("`%s` unexpected (expecting `%s`)", yytext, toktxt[tok]);
+}
+
+static void syntaxerr(const char *fmt, ...) {
   // also consume the newline as well
   if (yytoken != TNL)
     consumeline(1);
 
-  if (tok > 0)
-    raiseerr("syntax: `%s` unexpected (expecting `%s`)", yytext, toktxt[tok]);
-  else
-    raiseerr("syntax: `%s` unexpected", yytext);
+  va_list ap;
+  va_start(ap, fmt);
+  vpreraiseerr("syntax error: ", fmt, ap);
+  /* unreachable */
+  va_end(ap);
 }
