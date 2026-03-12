@@ -8,7 +8,6 @@
  */
 
 #include <assert.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -40,9 +39,12 @@ static void cappend(int);
 /* Expands a list of args for command execution */
 struct arg *expandargs(struct arg *args) {
   struct arg *head, **cur = &head, *cp;
-  split = 1;
+  split      = 0;
 
   while (args) {
+    if (!split && !isassignment(args->text)) {
+      split = 1;
+    }
     *cur = cp = expandarg(args);
     if (cp) {
       while (cp->next)

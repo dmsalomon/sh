@@ -41,8 +41,6 @@ static int evalfunc(struct cfunc *, struct cexec *);
 static int evalbltin(struct cexec *c, builtin_func f);
 static int evalcond(struct cmd *);
 
-static struct cexec *prepcmd(struct cexec *cmd);
-
 struct cfunc *last;
 
 static struct looploc {
@@ -62,8 +60,7 @@ int eval(struct cmd *c) {
 
   switch (c->type) {
   case CEXEC:
-    ce = (struct cexec *)c;
-    prepcmd(ce);
+    ce         = (struct cexec *)c;
     exitstatus = evalcmd(ce);
     break;
 
@@ -162,11 +159,18 @@ int eval(struct cmd *c) {
   return exitstatus;
 }
 
-/* handles expansion and creates argc and argv */
-static struct cexec *prepcmd(struct cexec *cmd) {
+/*
+ * runs the command
+ *
+ * if its a builtin it runs the corresponding funcion
+ * otherwise it forks and execs the program
+ *
+ * returns the exitstatus
+ */
+int evalcmd(struct cexec *cmd) {
   int argc;
   char **argv = NULL, **av;
-  struct arg *expargs, *ap;
+  struct arg *expargs, *cmdname, *ap;
 
   expargs = expandargs(cmd->args);
 
@@ -180,51 +184,32 @@ static struct cexec *prepcmd(struct cexec *cmd) {
     dprintf(preverrfd, "\n");
   }
 
-  for (ap = expargs, argc = 0; ap; ap = ap->next, argc++)
+  for (ap = expargs; ap && isassignment(ap->text); ap = ap->next)
     ;
+  cmdname = ap;
+
+  for (ap = expargs; ap != cmdname; ap = ap->next) {
+    if (cmdname) {
+      // FIXME pushlocal var
+      setvareq(ap->text, VEXPORT);
+    } else {
+      setvareq(ap->text, 0);
+    }
+  }
+
+  if (!cmdname) return 0;
+
+  for (argc = 0, ap = cmdname; ap; ap = ap->next) {
+    argc++;
+  }
 
   argv = av = stalloc(sizeof(*argv) * (argc + 1));
-  for (ap = expargs; ap; av++, ap = ap->next)
+  for (ap = cmdname; ap; av++, ap = ap->next)
     *av = ap->text;
   *av = NULL;
 
   cmd->argc = argc;
   cmd->argv = argv;
-  return cmd;
-}
-
-/*
- * runs the command
- *
- * if its a builtin it runs the corresponding funcion
- * otherwise it forks and execs the program
- *
- * returns the exitstatus
- */
-int evalcmd(struct cexec *cmd) {
-  // TODO handle this where it's supposed to be
-  // prepcmd(cmd);
-
-  // points to the cmd name (after assignments)
-  char **cmdname, **av;
-
-  for (cmdname = cmd->argv; *cmdname && isassignment(*cmdname); cmdname++)
-    cmd->argc--;
-
-  for (av = cmd->argv; av < cmdname; av++) {
-    if (*cmdname) {
-      // TODO fix
-      setvareq(*av, VEXPORT);
-    } else {
-      setvareq(*av, 0);
-    }
-  }
-
-  assert(av || !*cmdname);
-  if (!*cmdname)
-    return 0;
-
-  cmd->argv = cmdname;
 
   struct funcentry *fp = lookupfunc(cmd->argv[0], 0);
   if (fp)
