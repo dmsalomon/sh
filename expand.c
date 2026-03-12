@@ -1,3 +1,11 @@
+/*
+ * \file expand.c
+ *
+ * Yes, this is by far the ugliest code in the project
+ *
+ * TODO
+ * - [ ] Use flags to have different expansion modes
+ */
 
 #include <assert.h>
 #include <stdio.h>
@@ -174,6 +182,7 @@ static void procvalue(struct cmd *cmd) {
   exitstatus = waitsh(pid);
   INTON;
 
+  /* strip newlines even if quoted */
   if ((quote || filename) && expdest && lastc == '\n' &&
       STTOPC(expdest) == '\n') {
     expdest--;

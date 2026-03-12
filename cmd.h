@@ -18,6 +18,7 @@
 #define CFOR   13
 #define CFUNC  14
 #define CCASE  15
+#define CMAX   16
 
 struct cmd {
   int type;
@@ -110,9 +111,7 @@ struct cmd *forcmd(char *, struct arg *, struct cmd *);
 struct cmd *funccmd(char *, struct cmd *);
 
 /* deepcopy */
-struct arg *copyargs(struct arg *);
 struct cmd *copycmd(struct cmd *);
-void freeargs(struct arg *);
 void freecmd(struct cmd *);
 
 #endif

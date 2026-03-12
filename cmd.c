@@ -7,9 +7,15 @@
 #include "output.h"
 
 const char *cmdname[] = {
-    "exec",  "pipe", "bang",       "and", "or",   "sub",  "redir", "while",
-    "until", "list", "background", "if",  "func", "case", NULL,
+    "exec",  "pipe",  "bang", "and",        "or", "sub",  "brace", "redir",
+    "while", "until", "list", "background", "if", "func", "case",  NULL,
 };
+
+#define LEN(a) (sizeof(a) / sizeof(*a))
+static_assert(LEN(cmdname) == CMAX, "cmdname has the wrong size");
+
+static inline void freeargs(struct arg *);
+static inline struct arg *copyargs(struct arg *);
 
 struct cmd *execcmd() {
   struct cexec *cmd;
@@ -86,7 +92,7 @@ struct cmd *funccmd(char *name, struct cmd *body) {
   return (struct cmd *)cmd;
 }
 
-struct arg *copyargs(struct arg *ap) {
+static inline struct arg *copyargs(struct arg *ap) {
   struct arg *bp, **bpp = &bp;
 
   while (ap) {
@@ -100,6 +106,34 @@ struct arg *copyargs(struct arg *ap) {
   return bp;
 }
 
+struct pattern *copypatterns(struct pattern *ap) {
+  struct pattern *pp, **ppp = &pp;
+
+  while (ap) {
+    *ppp            = xmalloc(sizeof(*pp));
+    (*ppp)->pattern = xstrdup(ap->pattern);
+    ppp             = &(*ppp)->next;
+    ap              = ap->next;
+  }
+  *ppp = NULL;
+  return pp;
+}
+
+struct cases *copycases(struct cases *ac) {
+  struct cases *cp, **cpp = &cp;
+
+  while (ac) {
+    *cpp                = xmalloc(sizeof(*cp));
+    (*cpp)->cmd         = copycmd(ac->cmd);
+    (*cpp)->fallthrough = ac->fallthrough;
+    (*cpp)->patterns    = copypatterns(ac->patterns);
+    cpp                 = &(*cpp)->next;
+    ac                  = ac->next;
+  }
+  *cpp = NULL;
+  return cp;
+}
+
 struct cmd *copycmd(struct cmd *c) {
   if (!c)
     return NULL;
@@ -111,6 +145,7 @@ struct cmd *copycmd(struct cmd *c) {
   struct cloop *cl, *ccl;
   struct cif *ci, *cci;
   struct cfor *cf, *ccf;
+  struct ccase *cc, *ccc;
   struct cfunc *cfn, *ccfn;
 
   switch (c->type) {
@@ -187,6 +222,15 @@ struct cmd *copycmd(struct cmd *c) {
     ccf->body = copycmd(cf->body);
     return (struct cmd *)ccf;
 
+  case CCASE:
+    cc  = (struct ccase *)c;
+    ccc = xmalloc(sizeof(*ccc));
+
+    ccc->type = cc->type;
+    ccc->expr = xstrdup(cc->expr);
+    ccc->list = copycases(cc->list);
+    return (struct cmd *)ccc;
+
   case CFUNC:
     cfn  = (struct cfunc *)c;
     ccfn = xmalloc(sizeof(*ccfn));
@@ -201,7 +245,7 @@ struct cmd *copycmd(struct cmd *c) {
   }
 }
 
-void freeargs(struct arg *ap) {
+static inline void freeargs(struct arg *ap) {
   struct arg *next;
 
   while (ap) {
@@ -210,6 +254,27 @@ void freeargs(struct arg *ap) {
     freecmd((struct cmd *)ap->subst);
     free(ap);
     ap = next;
+  }
+}
+
+static inline void freepattern(struct pattern *p) {
+  struct pattern *next;
+  while (p) {
+    next = p->next;
+    free(p->pattern);
+    free(p);
+    p = next;
+  }
+}
+
+static inline void freecases(struct cases *cp) {
+  struct cases *next;
+  while (cp) {
+    next = cp->next;
+    freepattern(cp->patterns);
+    freecmd(cp->cmd);
+    free(cp);
+    cp = next;
   }
 }
 
@@ -224,6 +289,7 @@ void freecmd(struct cmd *c) {
   struct cloop *cl;
   struct cif *ci;
   struct cfor *cf;
+  struct ccase *cc;
   struct cfunc *cfn;
 
   switch (c->type) {
@@ -283,6 +349,12 @@ void freecmd(struct cmd *c) {
     freecmd(cf->body);
     break;
 
+  case CCASE:
+    cc = (struct ccase *)c;
+    free(cc->expr);
+    freecases(cc->list);
+    break;
+
   case CFUNC:
     cfn = (struct cfunc *)c;
 
@@ -293,4 +365,6 @@ void freecmd(struct cmd *c) {
   default:
     die("unknown command type: %d\n", c->type);
   }
+
+  free(c);
 }
