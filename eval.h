@@ -14,17 +14,17 @@ extern char *commandname;
 int eval(struct cmd *);
 int evalcmd(struct cexec *);
 int evalstring(char *s);
-int runprog(struct cexec *);
+int runprog(char **argv);
 pid_t dfork(void);
 int waitsh(int);
 
 void unwindloops(void);
 void unwindrets(void);
 
-int break_builtin(struct cexec *);
-int eval_builtin(struct cexec *);
-int return_builtin(struct cexec *);
-int source_builtin(struct cexec *);
+int break_builtin(int argc, char **argv);
+int eval_builtin(int argc, char **argv);
+int return_builtin(int argc, char **argv);
+int source_builtin(int argc, char **argv);
 
 /* must be <0 */
 #define SKIPBREAK 1

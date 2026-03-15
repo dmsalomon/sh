@@ -38,8 +38,8 @@ static int evalpipe(struct cmd *);
 static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
 static int evalcase(struct cmd *);
-static int evalfunc(struct cfunc *, struct cexec *);
-static int evalbltin(builtin_func f, struct cexec *c);
+static int evalfunc(struct cfunc *, int, char **);
+static int evalbltin(builtin_func f, int, char **);
 static int evalcond(struct cmd *);
 
 struct cfunc *last;
@@ -245,18 +245,18 @@ int evalcmd(struct cexec *cmd) {
 
   int status;
   if (fp) {
-    status = evalfunc(fp->func, cmd);
+    status = evalfunc(fp->func, argc, argv);
   } else if (bilt) {
-    status = evalbltin(bilt->func, cmd);
+    status = evalbltin(bilt->func, argc, argv);
   } else {
-    status = runprog(cmd);
+    status = runprog(argv);
   }
 
   unwindlocalvars(prevlf);
   return status;
 }
 
-static int evalbltin(builtin_func f, struct cexec *c) {
+static int evalbltin(builtin_func f, int argc, char **argv) {
   char *volatile savecmdname;
   struct jmploc *volatile savehandler;
   struct jmploc here;
@@ -269,22 +269,22 @@ static int evalbltin(builtin_func f, struct cexec *c) {
     goto done;
   }
   handler = &here;
-  commandname = c->argv[0];
-  status = f(c);
+  commandname = argv[0];
+  status = f(argc, argv);
 done:
   commandname = savecmdname;
   handler = savehandler;
   return status;
 }
 
-static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
+static int evalfunc(struct cfunc *cf, int argc, char **argv) {
   int status;
   struct stackmark mark;
   struct shparam saveparam = shparam;
 
   shparam.mallocd = 0;
-  shparam.np = cmd->argc - 1;
-  shparam.p = cmd->argv + 1;
+  shparam.np = argc - 1;
+  shparam.p = argv + 1;
 
   struct jmploc *savefuncret = funcret;
   struct looploc *saveloops = loops;
@@ -312,11 +312,11 @@ out:
 
 void unwindrets() { funcret = NULL; }
 
-int return_builtin(struct cexec *cmd) {
-  int status = cmd->argc > 1 ? number(cmd->argv[1]) : 0;
+int return_builtin(int argc, char **argv) {
+  int status = argc > 1 ? number(argv[1]) : 0;
 
   if (status < 0)
-    raiseerr("illegal number: %s", cmd->argv[1]);
+    raiseerr("illegal number: %s", argv[1]);
 
   if (!funcret)
     _exit(status);
@@ -342,11 +342,11 @@ int evalstring(char *s) {
   return status;
 }
 
-int source_builtin(struct cexec *cmd) {
+int source_builtin(int argc, char **argv) {
   int status;
 
-  if (cmd->argc < 2) {
-    perrorf("%s: not enough arguments", cmd->argv[0]);
+  if (argc < 2) {
+    perrorf("%s: not enough arguments", argv[0]);
     return 1;
   }
 
@@ -360,7 +360,7 @@ int source_builtin(struct cexec *cmd) {
       status = 0;
     goto out;
   }
-  setinputfile(cmd->argv[1], INPUT_PUSH_FILE);
+  setinputfile(argv[1], INPUT_PUSH_FILE);
   status = repl();
 out:
   popfile();
@@ -369,21 +369,21 @@ out:
   return status;
 }
 
-int eval_builtin(struct cexec *cmd) {
+int eval_builtin(int argc, char **argv) {
   int status;
   char *p, *concat, **ap;
   struct stackmark mark;
 
   pushstackmark(&mark);
 
-  if (cmd->argc < 2) {
+  if (argc < 2) {
     return 0;
   }
-  if (cmd->argc == 2) {
-    p = cmd->argv[1];
+  if (argc == 2) {
+    p = argv[1];
   } else {
     STARTSTACKSTR(concat);
-    for (ap = cmd->argv + 1; *ap; ap++) {
+    for (ap = argv + 1; *ap; ap++) {
       concat = stputs(*ap, concat);
       STPUTC(' ', concat);
     }
@@ -476,13 +476,13 @@ brk:
   return exitstatus;
 }
 
-int break_builtin(struct cexec *cmd) {
-  int n = cmd->argc > 1 ? number(cmd->argv[1]) : 1;
+int break_builtin(int argc, char **argv) {
+  int n = argc > 1 ? number(argv[1]) : 1;
   int type;
 
   if (n <= 0)
-    raiseerr("bad number: %s", cmd->argv[1]);
-  type = (cmd->argv[0][0] == 'c') ? SKIPCONT : SKIPBREAK;
+    raiseerr("bad number: %s", argv[1]);
+  type = (argv[0][0] == 'c') ? SKIPCONT : SKIPBREAK;
   return poploop(n, type);
 }
 
@@ -579,7 +579,7 @@ pid_t dfork() {
  * The parent waits until the child program is done.
  * Gets the return value by waitpid.
  */
-int runprog(struct cexec *cmd) {
+int runprog(char **argv) {
   int status;
   pid_t pid;
   char **envp = environment();
@@ -587,9 +587,9 @@ int runprog(struct cexec *cmd) {
   INTOFF;
   if ((pid = dfork()) == 0) {
     /* child */
-    execvpe(cmd->argv[0], cmd->argv, envp);
+    execvpe(argv[0], argv, envp);
     /* if error */
-    sdie(127, "%s:", cmd->argv[0]);
+    sdie(127, "%s:", argv[0]);
   }
 
   /* parent */

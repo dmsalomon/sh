@@ -14,6 +14,7 @@
   - [x] local variables
 - [x] parse assignments separately
 - [ ] handle redirects as part of command execution (for exec builtin)
-- [ ] just use argc and argv in builtin commands
+- [x] just use argc and argv in builtin commands
+- [ ] HERE docs
 - [ ] aliases
 - [ ] file globbing

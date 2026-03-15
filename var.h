@@ -36,10 +36,10 @@ struct localframe *pushlocalframe(int);
 void unwindlocalvars(struct localframe *stop);
 void setlocalvar(char *var, int flags);
 
-int export_builtin(struct cexec *);
-int read_builtin(struct cexec *);
-int unset_builtin(struct cexec *);
-int local_builtin(struct cexec *);
+int export_builtin(int argc, char **argv);
+int read_builtin(int argc, char **argv);
+int unset_builtin(int argc, char **argv);
+int local_builtin(int argc, char **argv);
 
 #define vps1    varinit[0]
 #define vps2    (&vps1)[1]

@@ -1,5 +1,5 @@
 
-CFLAGS:=-Wall -Wextra -ggdb
+CFLAGS:=-Wall -ggdb
 PROG:=sh
 DIR:=$(notdir $(basename $(CURDIR)))
 TAR:=$(DIR).tar.gz

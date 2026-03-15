@@ -25,5 +25,5 @@ extern char optlist[NOPTS];
 int procargs(char **);
 void freeparam(struct shparam *);
 
-int set_builtin(struct cexec *);
-int shift_builtin(struct cexec *);
+int set_builtin(int argc, char **argv);
+int shift_builtin(int argc, char **argv);

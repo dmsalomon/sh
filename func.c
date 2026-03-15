@@ -3,14 +3,12 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "cmd.h"
 #include "func.h"
 #include "mem.h"
-#include "output.h"
 
 #define FUNCTABSIZE 11
 static struct funcentry *functab[FUNCTABSIZE];

@@ -63,12 +63,12 @@ struct builtin *get_builtin(const char *name) {
                  builtincmp);
 }
 
-int echo_builtin(struct cexec *cmd) {
+int echo_builtin(int argc, char **argv) {
   int i = 1;
 
-  while (i < cmd->argc) {
-    printf("%s", cmd->argv[i]);
-    if (++i < cmd->argc)
+  while (i < argc) {
+    printf("%s", argv[i]);
+    if (++i < argc)
       printf(" ");
   }
   printf("\n");
@@ -83,16 +83,16 @@ int echo_builtin(struct cexec *cmd) {
  * will try to cd to $HOME
  */
 
-int cd_builtin(struct cexec *cmd) {
+int cd_builtin(int argc, char **argv) {
   int print = 0;
   char *pwd, *dest;
 
-  if (cmd->argc > 2) {
+  if (argc > 2) {
     perrorf("cd: too many args");
     return 1;
   }
 
-  dest = cmd->argv[1];
+  dest = argv[1];
   if (!dest) {
     dest = lookupvar("HOME");
   } else if (dest[0] == '-' && dest[1] == '\0') {
@@ -122,28 +122,28 @@ int cd_builtin(struct cexec *cmd) {
  * by default the status will be 0
  * the user can specify a status
  */
-int exit_builtin(struct cexec *cmd) {
-  _exit(cmd->argc > 1 ? number(cmd->argv[1]) : exitstatus);
+int exit_builtin(int argc, char **argv) {
+  _exit(argc > 1 ? number(argv[1]) : exitstatus);
 }
 
 /* exec a program to replace the shell */
-int exec_builtin(struct cexec *cmd) {
-  if (cmd->argc > 1) {
-    execvp(cmd->argv[1], cmd->argv + 1);
+int exec_builtin(int argc, char **argv) {
+  if (argc > 1) {
+    execvp(argv[1], argv + 1);
     /* if error */
-    perrorf("exec: %s: command not found", cmd->argv[1]);
+    perrorf("exec: %s: command not found", argv[1]);
     return 127;
   }
   return 0;
 }
 
-int fg_builtin(struct cexec *cmd) {
-  if (cmd->argc < 2) {
+int fg_builtin(int argc, char **argv) {
+  if (argc < 2) {
     perrorf("fg: too few args");
     return 1;
   }
 
-  int pid = number(cmd->argv[1]);
+  int pid = number(argv[1]);
 
   if (kill(pid, SIGCONT)) {
     perrorf("fg: cannot resume %d", pid);
@@ -153,51 +153,52 @@ int fg_builtin(struct cexec *cmd) {
   return waitsh(pid);
 }
 
-int true_builtin(struct cexec *cmd) { return cmd->argv[0][0] == 'f'; }
+int true_builtin(int argc, char **argv) {
+  return argv[0][0] == 'f';
+}
 
 /* print the argument,
  * useful for debugging */
-int args_builtin(struct cexec *cmd) {
+int args_builtin(int argc, char **argv) {
   char **app;
 
-  printf("argc: %d\n", cmd->argc - 1);
-  for (app = cmd->argv + 1; *app; app++) {
+  printf("argc: %d\n", argc - 1);
+  for (app = argv + 1; *app; app++) {
     printf("`%s`: %ld\n", *app, strlen(*app));
   }
 
   return 0;
 }
 
-int builtin_builtin(struct cexec *cmd) {
-  cmd->argv++;
-  cmd->argc--;
+int builtin_builtin(int argc, char **argv) {
+  argv++;
+  argc--;
 
-  if (cmd->argc == 0)
+  if (argc == 0)
     return 0;
 
-  struct builtin *b = get_builtin(cmd->argv[0]);
+  struct builtin *b = get_builtin(argv[0]);
 
   if (!b) {
-    perrorf("builtin: %s: not a shell builtin", cmd->argv[0]);
+    perrorf("builtin: %s: not a shell builtin", argv[0]);
     return 1;
   }
   builtin_func bt = b->func;
 
-  return (*bt)(cmd);
+  return (*bt)(argc, argv);
 }
 
-int command_builtin(struct cexec *cmd) {
-  cmd->argc--;
-  cmd->argv++;
+int command_builtin(int argc, char **argv) {
+  argc--;
+  argv++;
 
-  if (cmd->argc == 0)
+  if (argc == 0)
     return 0;
 
-  return runprog(cmd);
+  return runprog(argv);
 }
 
-int tokens_builtin(struct cexec *cmd) {
-  (void)cmd;
+int tokens_builtin(int argc, char **argv) {
   show_tokens = !show_tokens;
   return 0;
 }

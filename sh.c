@@ -22,8 +22,6 @@
 int rootpid;
 
 int main(int argc, char **argv) {
-  (void) argc; // UNUSED
-
   volatile int state = 0;
   int exception;
   struct stackmark mark;

@@ -9,18 +9,18 @@
 #define BUILTIN_SPECIAL (1 << 1)
 #define BUILTIN_ASSIGN  (1 << 2)
 
-typedef int (*builtin_func)(struct cexec *);
+typedef int (*builtin_func)(int argc, char** argv);
 
-int args_builtin(struct cexec *);
-int builtin_builtin(struct cexec *);
-int cd_builtin(struct cexec *);
-int command_builtin(struct cexec *);
-int echo_builtin(struct cexec *);
-int exec_builtin(struct cexec *);
-int exit_builtin(struct cexec *);
-int fg_builtin(struct cexec *);
-int tokens_builtin(struct cexec *);
-int true_builtin(struct cexec *);
+int args_builtin(int argc, char **argv);
+int builtin_builtin(int argc, char **argv);
+int cd_builtin(int argc, char **argv);
+int command_builtin(int argc, char **argv);
+int echo_builtin(int argc, char **argv);
+int exec_builtin(int argc, char **argv);
+int exit_builtin(int argc, char **argv);
+int fg_builtin(int argc, char **argv);
+int tokens_builtin(int argc, char **argv);
+int true_builtin(int argc, char **argv);
 
 struct builtin {
   char *name;

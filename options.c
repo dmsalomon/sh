@@ -145,22 +145,21 @@ int procargs(char **argv) {
   return login;
 }
 
-int set_builtin(struct cexec *c) {
-  char **argv = c->argv + 1;
+int set_builtin(int argc, char **argv) {
+  argv++;
   options(&argv, 0);
   if (*argv)
     setparam(argv);
   return 0;
 }
 
-int shift_builtin(struct cexec *c) {
-
+int shift_builtin(int argc, char **argv) {
   int n;
   char **ap1, **ap2;
 
   n = 1;
-  if (c->argc > 1)
-    n = number(c->argv[1]);
+  if (argc > 1)
+    n = number(argv[1]);
   if (n > shparam.np)
     raiseerr("can't shift that many");
   INTOFF;

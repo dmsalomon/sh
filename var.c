@@ -220,15 +220,15 @@ out:
   return vp;
 }
 
-int export_builtin(struct cexec *cmd) {
+int export_builtin(int argc, char **argv) {
   /* TODO lets not bother listing the variables
    * forget POSIX, at least for now */
 
-  int flag = cmd->argv[0][0] == 'r' ? VRDONLY : VEXPORT;
+  int flag = argv[0][0] == 'r' ? VRDONLY : VEXPORT;
   char *ap, **app, *p;
   struct var *vp;
 
-  for (app = &cmd->argv[1]; (ap = *app); app++) {
+  for (app = &argv[1]; (ap = *app); app++) {
     if ((p = strchr(ap, '=')) != NULL) {
       p++;
     } else {
@@ -245,11 +245,11 @@ int export_builtin(struct cexec *cmd) {
   return 0;
 }
 
-int read_builtin(struct cexec *cmd) {
+int read_builtin(int argc, char **argv) {
   int n;
   char c, *line;
 
-  if (cmd->argc < 2) {
+  if (argc < 2) {
     perrorf("read: arg count");
     return 2;
   }
@@ -261,12 +261,12 @@ int read_builtin(struct cexec *cmd) {
     return 1;
   STACKSTRNUL(line);
 
-  if (*endofname(cmd->argv[1])) {
-    perrorf("read: %s: bad variable name", cmd->argv[1]);
+  if (*endofname(argv[1])) {
+    perrorf("read: %s: bad variable name", argv[1]);
     return 1;
   }
 
-  setvar(cmd->argv[1], stacknext, 0);
+  setvar(argv[1], stacknext, 0);
 
   return 0;
 }
@@ -401,8 +401,8 @@ void unwindlocalvars(struct localframe *stop) {
     poplocalvars();
 }
 
-int local_builtin(struct cexec *c) {
-  char *name, **argv = c->argv;
+int local_builtin(int argc, char **argv) {
+  char *name;
 
   if (!localframe) {
     raiseerr("not in a function");
@@ -418,10 +418,8 @@ int local_builtin(struct cexec *c) {
 void unsetvar(const char *s) { setvar(s, 0, 0); }
 
 // TODO: handle functions
-int unset_builtin(struct cexec *c) {
-  char **ap;
-
-  for (ap = c->argv + 1; *ap; ap++) {
+int unset_builtin(int argc, char **argv) {
+  for (char **ap = argv + 1; *ap; ap++) {
     unsetvar(*ap);
   }
   return 0;
