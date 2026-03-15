@@ -15,7 +15,7 @@
 #include "var.h"
 
 int show_tokens = 0;
-int yytoken     = TNL;
+int yytoken = TNL;
 char *yytext;
 struct cbinary *subst;
 
@@ -39,6 +39,7 @@ const char *toktxt[] = {
 static_assert(LEN(toktxt) == TMAX + 1, "tokname should have length TMAX+1");
 
 static int readchar(void);
+static int readcharbnl(void);
 static int word(void);
 
 int nexttoken(void) {
@@ -52,7 +53,7 @@ repeat:
     yytoken = TEOF;
     break;
   case ';':
-    if ((c = readchar()) == ';') {
+    if ((c = readcharbnl()) == ';') {
       yytoken = TDSEMI;
     } else if (c == '&') {
       yytoken = TSEMIA;
@@ -62,7 +63,7 @@ repeat:
     }
     break;
   case '&':
-    c = readchar();
+    c = readcharbnl();
     if (c != '&') {
       pungetc();
       yytoken = TBGND;
@@ -71,7 +72,7 @@ repeat:
     }
     break;
   case '|':
-    c = readchar();
+    c = readcharbnl();
     if (c != '|') {
       pungetc();
       yytoken = TPIPE;
@@ -86,7 +87,7 @@ repeat:
     yytoken = TRPAR;
     break;
   case '>':
-    if ((c = readchar()) == '>') {
+    if ((c = readcharbnl()) == '>') {
       yytoken = TDGRT;
     } else {
       pungetc();
@@ -94,7 +95,7 @@ repeat:
     }
     break;
   case '<':
-    if ((c = readchar()) == '<') {
+    if ((c = readcharbnl()) == '<') {
       yytoken = TDLSS;
     } else {
       pungetc();
@@ -141,6 +142,7 @@ repeat:
   case PEOF:
     break;
   default:
+    // skip garbage
     if (!isprint(c) && !ispunct(c) && !isspace(c))
       goto repeat;
     break;
@@ -150,12 +152,31 @@ repeat:
 }
 
 /*
+ * consumes all backslace-newline (bnl) sequences.
+ */
+static int readcharbnl() {
+  int c;
+  while ((c = readchar()) == '\\') {
+    if (readchar() != '\n') {
+      pungetc();
+      break;
+    }
+    setprompt(2);
+  }
+  return c;
+}
+
+static inline int readchar_optbnl(int eatbnl) {
+  return eatbnl ? readcharbnl() : readchar();
+}
+
+/*
  * do NOT skip newlines
  */
-int skipspaces(void) {
+static inline int skipspaces(void) {
   int c;
 
-  while ((c = readchar()) != PEOF && strchr(" \v\r\t", c))
+  while ((c = readcharbnl()) != PEOF && strchr(" \v\r\t", c))
     ; /* advance */
   return c;
 }
@@ -181,20 +202,20 @@ static int word(void) {
   struct cbinary *cbase, **cpp;
   struct cunary *cu;
 
-  int str   = 0;
+  int str = 0;
   int brace = 0;
-  cpp       = &cbase;
+  cpp = &cbase;
 
   STARTSTACKSTR(ypp);
 
-  while ((c = readchar()) != PEOF) {
+  while ((c = readchar_optbnl(str != '\'')) != PEOF) {
     if (!str && !brace && strchr(" ()<>&\n\t\r\v;|", c)) {
       pungetc();
       break;
     }
 
     if (c == '$' && str != '\'') {
-      if ((c = readchar()) == '(') {
+      if ((c = readcharbnl()) == '(') {
         /* save the stack string */
         int savelen = ypp - stacknext;
         if (savelen > 0) {
@@ -204,9 +225,9 @@ static int word(void) {
 
         /* parse cmd substitution */
         yytoken = TLPAR;
-        cu      = (struct cunary *)parsesub();
-        *cpp    = (struct cbinary *)bincmd(CLIST, cu->cmd, NULL);
-        cpp     = (struct cbinary **)&(*cpp)->right;
+        cu = (struct cunary *)parsesub();
+        *cpp = (struct cbinary *)bincmd(CLIST, cu->cmd, NULL);
+        cpp = (struct cbinary **)&(*cpp)->right;
 
         /* restore the stack string */
         ypp = growstackto(savelen + 1);
@@ -231,8 +252,9 @@ static int word(void) {
       brace = 0;
 
     if (c == '\\' && str != '\'') {
+      assert((c = readchar()) != '\n');
       STPUTC('\\', ypp);
-      if ((c = readchar()) == PEOF)
+      if (c == PEOF)
         break;
     }
 
@@ -249,8 +271,8 @@ static int word(void) {
 
   STPUTC('\0', ypp);
   yytext = ststrsave(ypp);
-  *cpp   = NULL;
-  subst  = cbase;
+  *cpp = NULL;
+  subst = cbase;
 
   return TWORD;
 }

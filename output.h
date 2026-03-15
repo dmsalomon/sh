@@ -13,7 +13,9 @@ void sdie(int status, const char *fmt, ...) __attribute__((noreturn));
 void flushall(void);
 
 #ifdef DEBUG
-#define DEBUGF(fmt, ...) perrorf("DEBUG: " fmt, ##__VA_ARGS__)
+#define STRINGIFY(x) #x
+#define STR(x) STRINGIFY(x)
+#define DEBUGF(fmt, ...) perrorf("DEBUG:" __FILE__ ":" STR(__LINE__) ": " fmt, ##__VA_ARGS__)
 #else
 #define DEBUGF(fmt, ...)
 #endif

@@ -66,7 +66,7 @@ static struct cmd *parselist(void) {
     op = yytoken == TSEMI ? CLIST : CBGND;
     nexttoken();
     cont = yytoken != TNL && yytoken != TEOF;
-    c    = bincmd(op, c, cont ? parsecond() : NULL);
+    c = bincmd(op, c, cont ? parsecond() : NULL);
   }
   return c;
 }
@@ -80,10 +80,7 @@ static struct cmd *parsecond(void) {
   while (yytoken == TAND || yytoken == TOR) {
     c = yytoken == TAND ? CAND : COR;
     nexttoken();
-    while (yytoken == TNL) {
-      setprompt(2);
-      nexttoken();
-    }
+    linebreak();
     cmd = bincmd(c, cmd, parsepipe());
   }
 
@@ -107,10 +104,7 @@ static struct cmd *parsepipe(void) {
 
   while (yytoken == TPIPE) {
     nexttoken();
-    while (yytoken == TNL) {
-      setprompt(2);
-      nexttoken();
-    }
+    linebreak();
     sub = parsecmd();
     if (!sub)
       unexpected();
@@ -319,10 +313,10 @@ static struct cmd *parsefor(void) {
     expecting(TIN);
 
   while (nexttoken() == TWORD) {
-    *app          = stalloc(sizeof(**app));
-    (*app)->text  = yytext;
+    *app = stalloc(sizeof(**app));
+    (*app)->text = yytext;
     (*app)->subst = subst;
-    app           = &(*app)->next;
+    app = &(*app)->next;
   }
   *app = NULL;
 
@@ -344,7 +338,7 @@ static struct arg *patternlist(void) {
     if (yytoken != TWORD)
       expecting(TWORD);
 
-    p->text  = yytext;
+    p->text = yytext;
     p->subst = subst;
 
     if (nexttoken() == TPIPE) {
@@ -389,7 +383,7 @@ static struct cases *parsecaselist(void) {
     }
 
     *cpp = cp;
-    cpp  = &(*cpp)->next;
+    cpp = &(*cpp)->next;
   }
 
   if (yytoken != TESAC)
@@ -408,9 +402,9 @@ static struct cmd *parsecase(void) {
     unexpected();
 
   struct arg *expr = stalloc(sizeof(*expr));
-  expr->text       = yytext;
-  expr->subst      = subst;
-  expr->next       = NULL;
+  expr->text = yytext;
+  expr->subst = subst;
+  expr->next = NULL;
 
   nexttoken();
   linebreak();
@@ -429,17 +423,17 @@ static struct cmd *parsesimple(void) {
   struct cexec *ecmd;
   struct arg **app;
 
-  cmd  = execcmd();
+  cmd = execcmd();
   ecmd = (struct cexec *)cmd;
-  app  = &ecmd->args;
+  app = &ecmd->args;
 
   cmd = parseredir(cmd);
 
   while (yytoken == TWORD) {
-    *app          = stalloc(sizeof(**app));
-    (*app)->text  = yytext;
+    *app = stalloc(sizeof(**app));
+    (*app)->text = yytext;
     (*app)->subst = subst;
-    app           = &(*app)->next;
+    app = &(*app)->next;
     ecmd->argc++;
     nexttoken();
     cmd = parseredir(cmd);
@@ -531,9 +525,9 @@ static struct cmd *parseredir(struct cmd *cmd) {
 
     /* expand yytext for full filename */
     struct arg *filename = stalloc(sizeof(*filename));
-    filename->text       = yytext;
-    filename->subst      = subst;
-    filename->next       = NULL;
+    filename->text = yytext;
+    filename->subst = subst;
+    filename->next = NULL;
 
     /* stack redirection in FIFO order
      * this can be optimized but I dont care :)
@@ -581,10 +575,7 @@ static int newline_list(void) {
   if (yytoken != TNL)
     return 0;
 
-  do {
-    setprompt(2);
-  } while (nexttoken() == TNL);
-
+  linebreak();
   return 1;
 }
 

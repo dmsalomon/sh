@@ -15,6 +15,7 @@
 - [x] parse assignments separately
 - [ ] handle redirects as part of command execution (for exec builtin)
 - [x] just use argc and argv in builtin commands
+- [ ] expandstr for prompting
 - [ ] HERE docs
 - [ ] aliases
 - [ ] file globbing

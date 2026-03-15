@@ -374,7 +374,7 @@ static void poplocalvars(void) {
   while ((lvp = next) != NULL) {
     next = lvp->next;
     vp = lvp->var;
-    DEBUGF(("poplocalvar %s\n", vp ? vp->text : "-"));
+    DEBUGF("poplocalvar %s\n", vp ? vp->text : "-");
     if (vp == NULL) { /* $- saved */
       assert(0 && "TODO: $- not implemented yet");
       // 	memcpy(optlist, lvp->text, sizeof(optlist));
