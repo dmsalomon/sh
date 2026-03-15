@@ -2,6 +2,7 @@
  *
  * evaluate commands.
  */
+#define _GNU_SOURCE
 
 #include <assert.h>
 #include <errno.h>
@@ -38,7 +39,7 @@ static int evalloop(struct cmd *);
 static int evalfor(struct cmd *);
 static int evalcase(struct cmd *);
 static int evalfunc(struct cfunc *, struct cexec *);
-static int evalbltin(struct cexec *c, builtin_func f);
+static int evalbltin(builtin_func f, struct cexec *c);
 static int evalcond(struct cmd *);
 
 struct cfunc *last;
@@ -60,7 +61,7 @@ int eval(struct cmd *c) {
 
   switch (c->type) {
   case CEXEC:
-    ce         = (struct cexec *)c;
+    ce = (struct cexec *)c;
     exitstatus = evalcmd(ce);
     break;
 
@@ -79,7 +80,7 @@ int eval(struct cmd *c) {
     break;
 
   case CBANG:
-    cu         = (struct cunary *)c;
+    cu = (struct cunary *)c;
     exitstatus = !eval(cu->cmd);
     break;
 
@@ -130,7 +131,7 @@ int eval(struct cmd *c) {
     break;
 
   case CBRC:
-    cu         = (struct cunary *)c;
+    cu = (struct cunary *)c;
     exitstatus = eval(cu->cmd);
     break;
 
@@ -168,11 +169,56 @@ int eval(struct cmd *c) {
  * returns the exitstatus
  */
 int evalcmd(struct cexec *cmd) {
-  int argc;
-  char **argv = NULL, **av;
-  struct arg *expargs, *cmdname, *ap;
+  struct funcentry *fp = NULL;
+  struct builtin *bilt = NULL;
 
-  expargs = expandargs(cmd->args);
+  struct arg *expargs = NULL, **exp = &expargs, *cmdarg = NULL;
+  struct arg *last, *ap;
+
+  int vflags = 0;        //
+  int vlocal = 0;        //
+  int pseudovarflag = 0; // sometimes we parse regular cmd args as variables
+                         // (i.e. `local/export`)
+
+  for (ap = cmd->args; ap; ap = ap->next) {
+    struct arg *ep;
+    int expflags = (!cmdarg || (pseudovarflag && isassignment(ap->text)))
+                       ? EXP_NOSPLIT
+                       : EXP_FULL;
+
+    *exp = ep = expandarg(ap, &last, expflags);
+    if (!ep)
+      continue;
+    if (!cmdarg && !isassignment(ep->text)) {
+      cmdarg = ep;
+
+      vlocal++;
+
+      if ((fp = lookupfunc(cmdarg->text, 0))) {
+      } else if ((bilt = get_builtin(cmdarg->text))) {
+        vlocal = (bilt->flags & BUILTIN_SPECIAL) ^ BUILTIN_SPECIAL;
+        pseudovarflag = bilt->flags & BUILTIN_ASSIGN;
+      }
+    }
+    exp = &last->next;
+  }
+
+  int argc = 0;
+  for (ap = cmdarg; ap; ap = ap->next) {
+    argc++;
+  }
+
+  if (bilt && bilt->func == exec_builtin && argc > 1)
+    vflags = VEXPORT;
+
+  char **argv, **av;
+  argv = av = stalloc(sizeof(*argv) * (argc + 1));
+  for (ap = cmdarg; ap; av++, ap = ap->next)
+    *av = ap->text;
+  *av = NULL;
+
+  cmd->argc = argc;
+  cmd->argv = argv;
 
   if (xflag) {
     dprintf(preverrfd, "%s", ps4val);
@@ -184,45 +230,33 @@ int evalcmd(struct cexec *cmd) {
     dprintf(preverrfd, "\n");
   }
 
-  for (ap = expargs; ap && isassignment(ap->text); ap = ap->next)
-    ;
-  cmdname = ap;
+  struct localframe *prevlf = pushlocalframe(vlocal);
 
-  for (ap = expargs; ap != cmdname; ap = ap->next) {
-    if (cmdname) {
-      // FIXME pushlocal var
-      setvareq(ap->text, VEXPORT);
+  for (ap = expargs; ap != cmdarg; ap = ap->next) {
+    if (vlocal) {
+      setlocalvar(ap->text, VEXPORT);
     } else {
-      setvareq(ap->text, 0);
+      setvareq(ap->text, vflags);
     }
   }
 
-  if (!cmdname) return 0;
+  if (!cmdarg)
+    return 0;
 
-  for (argc = 0, ap = cmdname; ap; ap = ap->next) {
-    argc++;
+  int status;
+  if (fp) {
+    status = evalfunc(fp->func, cmd);
+  } else if (bilt) {
+    status = evalbltin(bilt->func, cmd);
+  } else {
+    status = runprog(cmd);
   }
 
-  argv = av = stalloc(sizeof(*argv) * (argc + 1));
-  for (ap = cmdname; ap; av++, ap = ap->next)
-    *av = ap->text;
-  *av = NULL;
-
-  cmd->argc = argc;
-  cmd->argv = argv;
-
-  struct funcentry *fp = lookupfunc(cmd->argv[0], 0);
-  if (fp)
-    return evalfunc(fp->func, cmd);
-
-  builtin_func bf = get_builtin(cmd->argv[0]);
-  if (bf)
-    return evalbltin(cmd, bf);
-
-  return runprog(cmd);
+  unwindlocalvars(prevlf);
+  return status;
 }
 
-static int evalbltin(struct cexec *c, builtin_func f) {
+static int evalbltin(builtin_func f, struct cexec *c) {
   char *volatile savecmdname;
   struct jmploc *volatile savehandler;
   struct jmploc here;
@@ -234,12 +268,12 @@ static int evalbltin(struct cexec *c, builtin_func f) {
     status = exitstatus;
     goto done;
   }
-  handler     = &here;
+  handler = &here;
   commandname = c->argv[0];
-  status      = f(c);
+  status = f(c);
 done:
   commandname = savecmdname;
-  handler     = savehandler;
+  handler = savehandler;
   return status;
 }
 
@@ -249,12 +283,12 @@ static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
   struct shparam saveparam = shparam;
 
   shparam.mallocd = 0;
-  shparam.np      = cmd->argc - 1;
-  shparam.p       = cmd->argv + 1;
+  shparam.np = cmd->argc - 1;
+  shparam.p = cmd->argv + 1;
 
   struct jmploc *savefuncret = funcret;
-  struct looploc *saveloops  = loops;
-  loops                      = NULL;
+  struct looploc *saveloops = loops;
+  loops = NULL;
 
   struct jmploc here;
   funcret = &here;
@@ -271,7 +305,7 @@ static int evalfunc(struct cfunc *cf, struct cexec *cmd) {
 out:
   freeparam(&shparam);
   shparam = saveparam;
-  loops   = saveloops;
+  loops = saveloops;
   funcret = savefuncret;
   return status;
 }
@@ -316,7 +350,7 @@ int source_builtin(struct cexec *cmd) {
     return 1;
   }
 
-  struct jmploc *saveret    = funcret;
+  struct jmploc *saveret = funcret;
   struct looploc *saveloops = loops;
 
   struct jmploc here;
@@ -331,7 +365,7 @@ int source_builtin(struct cexec *cmd) {
 out:
   popfile();
   funcret = saveret;
-  loops   = saveloops;
+  loops = saveloops;
   return status;
 }
 
@@ -406,7 +440,7 @@ static int poploop(int lvl, int type) {
     loops = loops->next;
   }
   jmppnt = loops;
-  loops  = loops->next;
+  loops = loops->next;
 
   exitstatus = 0;
   longjmp(jmppnt->loc, type);
@@ -427,7 +461,7 @@ static int evalloop(struct cmd *c) {
       goto brk;
   }
   here.next = loops;
-  loops     = &here;
+  loops = &here;
 
   pushstackmark(&mark);
 
@@ -462,13 +496,13 @@ static int evalfor(struct cmd *c) {
   cmd = (struct cfor *)c;
   pushstackmark(&fmark);
 
-  if (!(explist = expandargs(cmd->list))) {
+  if (!(explist = expandargs(cmd->list, EXP_FULL))) {
     popstackmark(&fmark);
     return exitstatus = 0;
   }
 
   here.next = loops;
-  loops     = &here;
+  loops = &here;
   pushstackmark(&mark);
 
   for (lp = explist; lp; lp = lp->next) {
@@ -531,7 +565,7 @@ pid_t dfork() {
   if (pid == 0) {
     forked++;
     funcret = NULL;
-    loops   = NULL;
+    loops = NULL;
     sigclearmask();
     closescript();
     FORCEINTON;
@@ -548,11 +582,12 @@ pid_t dfork() {
 int runprog(struct cexec *cmd) {
   int status;
   pid_t pid;
+  char **envp = environment();
 
   INTOFF;
   if ((pid = dfork()) == 0) {
     /* child */
-    execvp(cmd->argv[0], cmd->argv);
+    execvpe(cmd->argv[0], cmd->argv, envp);
     /* if error */
     sdie(127, "%s:", cmd->argv[0]);
   }

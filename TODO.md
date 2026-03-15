@@ -3,14 +3,17 @@
 - [ ] $_
 - [ ] variable substitution extensions
   - [ ] recursive variable parsing
-- [ ] redo variable expansion for file redirection
+- [x] redo variable expansion for file redirection
 - [ ] sourcing /etc/profile and .profile and $ENV
 - [x] implement case statement
   - [x] parsing
   - [x] eval logic
-  - [ ] variable expansion in `expr` and 
+  - [x] variable expansion in `expr` and `patterns`
   - [x] globs
+- [x] env vars for cmd exec (mklocal)
+  - [x] local variables
+- [x] parse assignments separately
+- [ ] handle redirects as part of command execution (for exec builtin)
+- [ ] just use argc and argv in builtin commands
 - [ ] aliases
 - [ ] file globbing
-- [ ] env vars for cmd exec (mklocal)
-  - [ ] local variables

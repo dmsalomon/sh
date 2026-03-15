@@ -3,7 +3,6 @@
 #include <stddef.h>
 
 #include "cmd.h"
-#include "lexer.h"
 #include "mem.h"
 #include "output.h"
 

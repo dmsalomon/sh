@@ -2,6 +2,7 @@
  *
  */
 
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,29 +13,49 @@
 #include "input.h"
 #include "mem.h"
 #include "output.h"
-#include "parser.h"
 #include "str.h"
 #include "var.h"
 
 #define VTABSIZE 39
+
+struct locals;
+
+struct localvar {
+  int flags;
+  char *text;
+  struct localvar *next;
+  struct var *var;
+};
+
+struct localframe {
+  struct localvar *locals;
+  struct localframe *next;
+};
+
+static struct localframe *localframe;
+
+char nullstr[1];
+static char *varnull(const char *s) {
+  return (strchr(s, '=') ?: nullstr - 1) + 1;
+}
 
 static char linenovar[sizeof("LINENO=") + sizeof(int) * 8 + 2] = "LINENO=";
 
 static char ppid[32] = "PPID=";
 
 struct var varinit[] = {
-    {0, VSTSTAT | VTXSTAT, "PS1=$ ", 0},
-    {0, VSTSTAT | VTXSTAT, "PS2=> ", 0},
-    {0, VSTSTAT | VTXSTAT, "PS4=+ ", 0},
-    {0, VSTSTAT | VTXSTAT, linenovar, 0},
-    {0, VSTSTAT | VTXSTAT, "IFS= \t\n", 0},
-    {0, VSTSTAT | VTXSTAT | VRDONLY, ppid, 0},
+    {0, VSTSTAT | VTXSTAT,           "PS1=$ ",    0},
+    {0, VSTSTAT | VTXSTAT,           "PS2=> ",    0},
+    {0, VSTSTAT | VTXSTAT,           "PS4=+ ",    0},
+    {0, VSTSTAT | VTXSTAT,           linenovar,   0},
+    {0, VSTSTAT | VTXSTAT,           "IFS= \t\n", 0},
+    {0, VSTSTAT | VTXSTAT | VRDONLY, ppid,        0},
 };
 
 static struct var *vartab[VTABSIZE];
 
 static struct var **hashvar(const char *);
-static struct var **findvar(struct var **, const char *);
+static struct var **findvar(const char *);
 
 #ifdef NO_STRCHRNUL
 static char *strchrnul(const char *s, int c) {
@@ -52,13 +73,13 @@ void initvar(void) {
   struct var *end;
   struct var **vpp;
 
-  vp  = varinit;
+  vp = varinit;
   end = vp + sizeof(varinit) / sizeof(varinit[0]);
 
   do {
-    vpp      = hashvar(vp->text);
+    vpp = hashvar(vp->text);
     vp->next = *vpp;
-    *vpp     = vp;
+    *vpp = vp;
   } while (++vp < end);
 
   if (!geteuid())
@@ -101,7 +122,7 @@ void initvar(void) {
 char *lookupvar(const char *name) {
   struct var *v;
 
-  if ((v = *findvar(hashvar(name), name)) && !(v->flags & VUNSET)) {
+  if ((v = *findvar(name)) && !(v->flags & VUNSET)) {
     if (v == &vlineno && v->text == linenovar) {
       snprintf(linenovar + 7, sizeof(linenovar) - 7, "%d", plineno - 1);
     }
@@ -116,8 +137,8 @@ struct var *setvar(const char *name, const char *val, int flags) {
   char *nameeq;
   struct var *vp;
 
-  q       = endofname(name);
-  p       = strchrnul(q, '=');
+  q = endofname(name);
+  p = strchrnul(q, '=');
   namelen = p - name;
   if (namelen == 0 || p != q)
     raiseerr("%.*s: bad variable name", namelen, name);
@@ -146,8 +167,8 @@ struct var *setvar(const char *name, const char *val, int flags) {
 struct var *setvareq(char *s, int flags) {
   struct var *vp, **vpp;
 
-  vpp = findvar(hashvar(s), s);
-  vp  = *vpp;
+  vpp = findvar(s);
+  vp = *vpp;
 
   if (vp) {
     if (vp->flags & VRDONLY) {
@@ -184,17 +205,17 @@ struct var *setvareq(char *s, int flags) {
       goto out;
     if ((flags & (VEXPORT | VRDONLY | VSTSTAT | VUNSET)) == VUNSET)
       goto out_free;
-    vp       = xmalloc(sizeof(*vp));
+    vp = xmalloc(sizeof(*vp));
     vp->next = *vpp;
     vp->func = NULL;
-    *vpp     = vp;
+    *vpp = vp;
   }
   if (!(flags & (VTXSTAT | VSTACK | VNOSAVE)))
     s = xstrdup(s);
-  vp->text  = s;
+  vp->text = s;
   vp->flags = flags;
-  if (flags & VEXPORT)
-    putenv(s);
+  // if (flags & VEXPORT)
+  //   putenv(s);
 out:
   return vp;
 }
@@ -211,10 +232,10 @@ int export_builtin(struct cexec *cmd) {
     if ((p = strchr(ap, '=')) != NULL) {
       p++;
     } else {
-      if ((vp = *findvar(hashvar(ap), ap))) {
+      if ((vp = *findvar(ap))) {
         vp->flags |= flag;
-        if (flag == VEXPORT)
-          putenv(vp->text);
+        // if (flag == VEXPORT)
+        //   putenv(vp->text);
         continue;
       }
     }
@@ -275,10 +296,156 @@ out:
   return c - d;
 }
 
-static struct var **findvar(struct var **vpp, const char *name) {
+static struct var **findvar(const char *name) {
+  struct var **vpp = hashvar(name);
   for (; *vpp; vpp = &(*vpp)->next)
     if (varequal((*vpp)->text, name))
       break;
 
   return vpp;
+}
+
+void setlocalvar(char *var, int flags) {
+  struct localvar *lvp;
+  struct var *vp;
+
+  INTOFF;
+  lvp = xmalloc(sizeof(struct localvar));
+  if (var[0] == '-' && var[1] == '\0') {
+    assert(0 && "TODO: $- not implemented yet");
+    // char *p;
+    // p         = xmalloc(sizeof(optlist));
+    // lvp->text = memcpy(p, optlist, sizeof(optlist));
+    // vp        = NULL;
+  } else {
+    char *eq;
+
+    vp = *findvar(var);
+    eq = strchr(var, '=');
+    if (vp == NULL) {
+      if (eq)
+        vp = setvareq(var, VSTSTAT | flags);
+      else
+        vp = setvar(var, NULL, VSTSTAT | flags);
+      lvp->flags = VUNSET;
+    } else {
+      lvp->text = vp->text;
+      lvp->flags = vp->flags;
+      vp->flags |= VSTSTAT | VTXSTAT;
+      if (eq)
+        setvareq(var, flags);
+    }
+  }
+  lvp->var = vp;
+  lvp->next = localframe->locals;
+  localframe->locals = lvp;
+  INTON;
+}
+
+struct localframe *pushlocalframe(int push) {
+  struct localframe *lf, *top;
+
+  top = localframe;
+  if (!push)
+    goto out;
+  INTOFF;
+  lf = xmalloc(sizeof(*lf));
+  lf->locals = NULL;
+  lf->next = localframe;
+  localframe = lf;
+  INTON;
+
+out:
+  return top;
+}
+
+static void poplocalvars(void) {
+  struct localframe *lf;
+  struct localvar *lvp, *next;
+  struct var *vp;
+
+  INTOFF;
+  lf = localframe;
+  localframe = lf->next;
+
+  next = lf->locals;
+  free(lf);
+
+  while ((lvp = next) != NULL) {
+    next = lvp->next;
+    vp = lvp->var;
+    DEBUGF(("poplocalvar %s\n", vp ? vp->text : "-"));
+    if (vp == NULL) { /* $- saved */
+      assert(0 && "TODO: $- not implemented yet");
+      // 	memcpy(optlist, lvp->text, sizeof(optlist));
+      // 	ckfree(lvp->text);
+      // 	optschanged();
+    } else if (lvp->flags == VUNSET) {
+      vp->flags &= ~(VSTSTAT | VRDONLY);
+      unsetvar(vp->text);
+    } else {
+      if ((vp->flags & (VTXSTAT | VSTACK)) == 0)
+        free(vp->text);
+      vp->flags = lvp->flags;
+      vp->text = lvp->text;
+      if (vp->func && !(vp->flags & VNOFUNC))
+        (*vp->func)(varnull(vp->text));
+    }
+    free(lvp);
+  }
+  INTON;
+}
+
+void unwindlocalvars(struct localframe *stop) {
+  while (localframe != stop)
+    poplocalvars();
+}
+
+int local_builtin(struct cexec *c) {
+  char *name, **argv = c->argv;
+
+  if (!localframe) {
+    raiseerr("not in a function");
+  }
+
+  while ((name = *argv++) != NULL) {
+    setlocalvar(name, 0);
+  }
+
+  return 0;
+}
+
+void unsetvar(const char *s) { setvar(s, 0, 0); }
+
+// TODO: handle functions
+int unset_builtin(struct cexec *c) {
+  char **ap;
+
+  for (ap = c->argv + 1; *ap; ap++) {
+    unsetvar(*ap);
+  }
+  return 0;
+}
+
+char **listvars(int on, int off, char ***end) {
+  struct var *vp, **vpp;
+  char **ep;
+  int mask;
+
+  STARTSTACKSTR(ep);
+  mask = on | off;
+  for (vpp = vartab; vpp < vartab + VTABSIZE; vpp++) {
+    for (vp = *vpp; vp; vp = vp->next)
+      if ((vp->flags & mask) == on) {
+        if (ep == stackstrend())
+          ep = growstackstr();
+        *ep++ = (char *)vp->text;
+      }
+  }
+  if (ep == stackstrend())
+    ep = growstackstr();
+  if (end)
+    *end = ep;
+  *ep++ = NULL;
+  return ststrsave(ep);
 }

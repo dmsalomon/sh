@@ -36,22 +36,15 @@ static void numappend(int);
 static void expappend(const char *);
 static void cappend(int);
 
-/* Expands a list of args for command execution */
-struct arg *expandargs(struct arg *args) {
-  struct arg *head, **cur = &head, *cp;
-  split      = 0;
+/* Expands a list of args */
+struct arg *expandargs(struct arg *args, int flags) {
+  struct arg *head, **cur = &head, *last, *cp;
 
-  while (args) {
-    if (!split && !isassignment(args->text)) {
-      split = 1;
-    }
-    *cur = cp = expandarg(args);
+  for (; args; args = args->next) {
+    *cur = cp = expandarg(args, &last, flags);
     if (cp) {
-      while (cp->next)
-        cp = cp->next;
-      cur = &cp->next;
+      cur = &last->next;
     }
-    args = args->next;
   }
   *cur = NULL;
   return head;
@@ -60,8 +53,7 @@ struct arg *expandargs(struct arg *args) {
 /* Expands a single arg with no splitting.
  * Used for case expr/pattern and file redirection. */
 char *exparg(struct arg *arg) {
-  split = 0;
-  arg   = expandarg(arg);
+  arg = expandarg(arg, NULL, EXP_NOSPLIT);
   return arg ? arg->text : "";
 }
 
@@ -87,28 +79,25 @@ static inline char *endofvar(char *v) {
   return p;
 }
 
-struct arg *expandarg(struct arg *arg) {
+struct arg *expandarg(struct arg *arg, struct arg **last, int flags) {
   int c;
   int wasquoted = 0;
   char *s, *p;
   struct arg *first;
   struct cbinary *subst = arg->subst;
 
-  len     = 0;
-  quote   = 0;
-  expdest = 0;
   first = cur = stalloc(sizeof(*cur));
 
   // fast path
   if (!*endofname(arg->text)) {
-    s = arg->text;
-    STARTSTACKSTR(expdest);
-    while (*s) {
-      STPUTC(*s++, expdest);
-      len++;
-    }
-    goto out;
+    cur->text = sstrdup(arg->text);
+    goto fast_path;
   }
+
+  split = flags ^ EXP_NOSPLIT;
+  len     = 0;
+  quote   = 0;
+  expdest = 0;
 
   for (s = arg->text; (c = *s);) {
     if (quote == c) {
@@ -158,7 +147,6 @@ struct arg *expandarg(struct arg *arg) {
     s++;
   }
 
-out:
   if (len == 0) {
     if (wasquoted) {
       cappend('\0');
@@ -171,8 +159,12 @@ out:
   }
 
   cur->text  = ststrsave(expdest);
+fast_path:
   cur->subst = NULL;
   cur->next  = NULL;
+
+  if (last)
+    *last = cur;
 
   return first;
 }

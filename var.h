@@ -6,10 +6,10 @@
 
 #define VEXPORT (1 << 1)
 #define VRDONLY (1 << 2)
-#define VSTSTAT (1 << 3)
-#define VTXSTAT (1 << 4)
-#define VSTACK  (1 << 5)
-#define VUNSET  (1 << 6)
+#define VSTSTAT (1 << 3) /* statically allocated struct */
+#define VTXSTAT (1 << 4) /* statically allocated text */
+#define VSTACK  (1 << 5) /* stack allocated text */
+#define VUNSET  (1 << 6) /* variable is not set */
 #define VNOFUNC (1 << 7)
 #define VNOSET  (1 << 8)
 #define VNOSAVE (1 << 9)
@@ -18,7 +18,7 @@ struct var {
   struct var *next;
   int flags;
   char *text;
-  void (*func)(const char *);
+  void (*func)(const char *); /* callback function */
 };
 
 extern struct var varinit[];
@@ -28,9 +28,18 @@ struct var *setvar(const char *, const char *, int);
 struct var *setvareq(char *, int);
 char *lookupvar(const char *);
 int varcmp(const char *, const char *);
+void unsetvar(const char *);
+char **listvars(int on, int off, char ***end);
+
+struct localframe;
+struct localframe *pushlocalframe(int);
+void unwindlocalvars(struct localframe *stop);
+void setlocalvar(char *var, int flags);
 
 int export_builtin(struct cexec *);
 int read_builtin(struct cexec *);
+int unset_builtin(struct cexec *);
+int local_builtin(struct cexec *);
 
 #define vps1    varinit[0]
 #define vps2    (&vps1)[1]
@@ -48,5 +57,7 @@ int read_builtin(struct cexec *);
 static inline int varequal(const char *p, const char *q) {
   return !varcmp(p, q);
 }
+
+#define environment() listvars(VEXPORT, VUNSET, 0)
 
 #endif

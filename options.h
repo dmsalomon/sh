@@ -22,7 +22,7 @@ extern char *minusc;
 extern const char optletters[NOPTS];
 extern char optlist[NOPTS];
 
-int procargs(int, char **);
+int procargs(char **);
 void freeparam(struct shparam *);
 
 int set_builtin(struct cexec *);

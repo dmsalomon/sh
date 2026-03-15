@@ -127,7 +127,7 @@ static void growstackblock(size_t min) {
   }
 }
 
-char *growstackstr(void) {
+void *growstackstr(void) {
   size_t len = stacknleft;
 
   growstackblock(0);

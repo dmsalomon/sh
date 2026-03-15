@@ -101,13 +101,13 @@ static void setoption(char flag, int val) {
   /* unreachable */
 }
 
-int procargs(int argc, char **argv) {
+int procargs(char **argv) {
   int login;
 
   login = argv[0] && argv[0][0] == '-';
   arg0  = argv[0];
 
-  if (argc > 0)
+  if (argv[0])
     argv++;
   for (int i = 0; i < NOPTS; i++)
     optlist[i] = 2;

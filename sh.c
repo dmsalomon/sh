@@ -22,6 +22,8 @@
 int rootpid;
 
 int main(int argc, char **argv) {
+  (void) argc; // UNUSED
+
   volatile int state = 0;
   int exception;
   struct stackmark mark;
@@ -34,6 +36,7 @@ int main(int argc, char **argv) {
     unwindredir();
     unwindloops();
     unwindrets();
+    unwindlocalvars(NULL);
     closescript();
     yytoken = TNL;
     popstackmark(&mark);
@@ -57,7 +60,7 @@ int main(int argc, char **argv) {
   parsefile->isatty = isatty(parsefile->fd);
   handler           = &jmploc;
   FORCEINTON;
-  procargs(argc, argv);
+  procargs(argv);
   state = 1;
 state1:
 
